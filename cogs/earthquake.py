@@ -8,7 +8,7 @@ class EarthquakeCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.last_earthquake_no = None
-        self.owner_id = XXX # 自己的 ID，之後模塊化
+        self.owner_id = 69370157784371200 # 你的專屬 ID
         
         with open('config.json', 'r', encoding='utf-8') as f:
             config = json.load(f)
@@ -66,11 +66,11 @@ class EarthquakeCog(commands.Cog):
                         discord_time = origin_time_str
 
                     report_url = f"https://www.twerg.org/dyfi?eq={current_no}"
-                    message_content = f"# 體感回報填寫（{current_no}）"
+                    message_content = f"# 📃體感回報填寫（{current_no}）"
                     
                     # ================= 修改 Embed 顏色 =================
                     # 將 #ff3846 轉換為 0xff3846
-                    embed = discord.Embed(title="📃顯著有感地震報告", color=0xff3846)
+                    embed = discord.Embed(title="顯著有感地震報告", color=0xff3846)
                     
                     embed.add_field(name="編號", value=str(current_no), inline=True)
                     embed.add_field(name="規模", value=f"芮氏 {magnitude}", inline=True)
