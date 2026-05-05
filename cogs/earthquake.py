@@ -56,6 +56,9 @@ class EarthquakeCog(commands.Cog):
                     eq_info = latest_earthquake.get('EarthquakeInfo', {})
                     origin_time_str = eq_info.get('OriginTime', '')
                     magnitude = eq_info.get('EarthquakeMagnitude', {}).get('MagnitudeValue', '未知')
+                    # ================= 抓取深度資訊 =================
+                    focal_depth = eq_info.get('FocalDepth', '未知')
+                    # ================================================
                     
                     try:
                         tw_tz = timezone(timedelta(hours=8))
@@ -66,16 +69,15 @@ class EarthquakeCog(commands.Cog):
                         discord_time = origin_time_str
 
                     report_url = f"https://www.twerg.org/dyfi?eq={current_no}"
-                    message_content = f"# 📃體感回報填寫（{current_no}）"
+                    message_content = f"# 📃 體感回報填寫（{current_no}）"
                     
-                    # ================= 修改 Embed 顏色 =================
-                    # 將 #ff3846 轉換為 0xff3846
                     embed = discord.Embed(title="顯著有感地震報告", color=0xff3846)
                     
                     embed.add_field(name="編號", value=str(current_no), inline=True)
                     embed.add_field(name="規模", value=f"芮氏 {magnitude}", inline=True)
+                    embed.add_field(name="深度", value=f"{focal_depth} 公里", inline=True)
+                    # ==================================================
                     embed.add_field(name="發生時間", value=discord_time, inline=False)
-                    # ===================================================
                     
                     view = discord.ui.View()
                     button = discord.ui.Button(label="體感回報網頁", url=report_url, style=discord.ButtonStyle.link)
