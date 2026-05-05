@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands, tasks
+from discord import app_commands
 import aiohttp
 import json
 from datetime import datetime, timezone, timedelta
@@ -20,21 +21,29 @@ class EarthquakeCog(commands.Cog):
     def cog_unload(self):
         self.check_earthquake.cancel()
 
-    async def fetch_and_send(self, force=False, ctx: commands.Context = None):
+    # 將 ctx 與 interaction 都作為可選參數傳入，方便回覆不同來源的觸發
+    async def fetch_and_send(self, force=False, ctx: commands.Context = None, interaction: discord.Interaction = None):
         url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?Authorization={self.api_key}&format=JSON"
         
+        # 定義一個輔助函數，用來處理回覆訊息，相容傳統與斜線指令
+        async def reply_message(content):
+            if ctx:
+                await ctx.send(content)
+            elif interaction:
+                await interaction.followup.send(content, ephemeral=True) # 斜線指令回覆設為僅自己可見
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
                     if response.status != 200:
-                        if ctx: await ctx.send(f"⚠️ API 請求失敗，狀態碼：{response.status}")
+                        await reply_message(f"⚠️ API 請求失敗，狀態碼：{response.status}")
                         return
 
                     data = await response.json()
                     earthquakes = data.get('records', {}).get('Earthquake', [])
                     
                     if not earthquakes:
-                        if ctx: await ctx.send("⚠️ 目前找不到任何地震資料。")
+                        await reply_message("⚠️ 目前找不到任何地震資料。")
                         return
 
                     latest_earthquake = earthquakes[0]
@@ -56,9 +65,7 @@ class EarthquakeCog(commands.Cog):
                     eq_info = latest_earthquake.get('EarthquakeInfo', {})
                     origin_time_str = eq_info.get('OriginTime', '')
                     magnitude = eq_info.get('EarthquakeMagnitude', {}).get('MagnitudeValue', '未知')
-                    # ================= 抓取深度資訊 =================
                     focal_depth = eq_info.get('FocalDepth', '未知')
-                    # ================================================
                     
                     try:
                         tw_tz = timezone(timedelta(hours=8))
@@ -72,11 +79,9 @@ class EarthquakeCog(commands.Cog):
                     message_content = f"# 📃 體感回報填寫（{current_no}）"
                     
                     embed = discord.Embed(title="顯著有感地震報告", color=0xff3846)
-                    
                     embed.add_field(name="編號", value=str(current_no), inline=True)
                     embed.add_field(name="規模", value=f"芮氏 {magnitude}", inline=True)
                     embed.add_field(name="深度", value=f"{focal_depth} 公里", inline=True)
-                    # ==================================================
                     embed.add_field(name="發生時間", value=discord_time, inline=False)
                     
                     view = discord.ui.View()
@@ -94,14 +99,15 @@ class EarthquakeCog(commands.Cog):
                         else:
                             print(f"⚠️ 找不到頻道 {channel_id}。")
                             
-                    if ctx:
-                        await ctx.send(f"✅ 已強制推送地震編號：`{current_no}`")
+                    # 推送成功後的回報
+                    if force:
+                        await reply_message(f"✅ 已強制推送地震編號：`{current_no}`")
                         print(f"🚨 管理員手動推送了地震報告：{current_no}")
                     else:
                         print(f"🚨 自動發現並發送新地震報告：{current_no}")
 
         except Exception as e:
-            if ctx: await ctx.send(f"❌ 發生錯誤：{e}")
+            await reply_message(f"❌ 發生錯誤：{e}")
             print(f"❌ 發生未預期的錯誤：{e}")
 
     @tasks.loop(seconds=30)
@@ -112,14 +118,27 @@ class EarthquakeCog(commands.Cog):
     async def before_check_earthquake(self):
         await self.bot.wait_until_ready()
 
+    # ================= 傳統文字指令 *push =================
     @commands.command(name="push")
-    async def push(self, ctx):
+    async def traditional_push(self, ctx):
         if ctx.author.id != self.owner_id:
             return
         
         temp_msg = await ctx.send("⏳ 正在抓取最新地震資料，請稍候...")
         await self.fetch_and_send(force=True, ctx=ctx)
         await temp_msg.delete()
+
+    # ================= 斜線指令 /push =================
+    @app_commands.command(name="push", description="強制推送最新的一筆地震報告")
+    async def slash_push(self, interaction: discord.Interaction):
+        # 權限檢查
+        if interaction.user.id != self.owner_id:
+            await interaction.response.send_message("❌ 你沒有權限使用此指令。", ephemeral=True)
+            return
+        
+        # 避免 API 超時，先顯示思考中 (僅限自己可見)
+        await interaction.response.defer(ephemeral=True)
+        await self.fetch_and_send(force=True, interaction=interaction)
 
 async def setup(bot):
     await bot.add_cog(EarthquakeCog(bot))
