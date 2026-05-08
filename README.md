@@ -92,6 +92,8 @@ python bot.py
 
 - 地牛記錄小組 官方網站 (Official Website): https://www.twerg.org
 - 地牛記錄小組 Discord (Discord Server): https://discord.gg/7sacMKp
+- Facebook: https://www.facebook.com/earthquakerecording
+- Threads: https://www.threads.com/@taiwanerg
 
 ## 授權 / License
 
