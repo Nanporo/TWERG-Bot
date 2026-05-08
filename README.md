@@ -92,7 +92,6 @@ python bot.py
 
 - 地牛記錄小組 官方網站 (Official Website): https://www.twerg.org
 - 地牛記錄小組 Discord (Discord Server): https://discord.gg/7sacMKp
-- 作者 (Author): Kuuchi
 
 ## 授權 / License
 
