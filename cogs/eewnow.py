@@ -38,11 +38,10 @@ class EewNowCog(commands.Cog):
                         dt = datetime.fromtimestamp(current_time, tw_tz)
                         footer_time_str = dt.strftime("%Y-%m-%d %H:%M:%S")
 
-                        # ================= 排版設定 =================
-                        message_content = "## 地牛Wake Up! 當前在線人數"
+                        # ================== Embed ==================
+                        message_content = "地牛Wake Up! 當前在線人數"
                         
-                        # 這裡沒有設定 color，預設會是一條細黑線，如果你想要可以加上 color=0xff3846
-                        embed = discord.Embed(color=0x2b2d31) 
+                        embed = discord.Embed(color=0xffffff) 
                         
                         embed.add_field(name="在線人數", value=f"{number} 人", inline=False)
                         embed.add_field(name="查詢時間", value=discord_timestamp, inline=True)

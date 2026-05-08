@@ -4,17 +4,16 @@ from discord import app_commands
 import aiohttp
 import json
 from datetime import datetime, timezone, timedelta
+from ownercheck import is_owner
 
 class EarthquakeCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.last_earthquake_no = None
-        self.owner_id = 69370157784371200 # 你的專屬 ID
         
         with open('config.json', 'r', encoding='utf-8') as f:
             config = json.load(f)
         self.api_key = config['CWA_API_KEY']
-        self.target_channels = config.get('TARGET_CHANNEL_IDS', [])
         
         self.check_earthquake.start()
 
@@ -22,7 +21,7 @@ class EarthquakeCog(commands.Cog):
         self.check_earthquake.cancel()
 
     # 將 ctx 與 interaction 都作為可選參數傳入，方便回覆不同來源的觸發
-    async def fetch_and_send(self, force=False, ctx: commands.Context = None, interaction: discord.Interaction = None):
+    async def fetch_and_send(self, force=False, target_guild_id=None, ctx: commands.Context = None, interaction: discord.Interaction = None):
         url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?Authorization={self.api_key}&format=JSON"
         
         # 定義一個輔助函數，用來處理回覆訊息，相容傳統與斜線指令
@@ -78,7 +77,7 @@ class EarthquakeCog(commands.Cog):
                     report_url = f"https://www.twerg.org/dyfi?eq={current_no}"
                     message_content = f"# 📃 體感回報填寫（{current_no}）"
                     
-                    embed = discord.Embed(title="顯著有感地震報告", color=0xff3846)
+                    embed = discord.Embed(title="顯著有感地震報告", description=report_url, color=0xff3846)
                     embed.add_field(name="編號", value=str(current_no), inline=True)
                     embed.add_field(name="規模", value=f"芮氏 {magnitude}", inline=True)
                     embed.add_field(name="深度", value=f"{focal_depth} 公里", inline=True)
@@ -88,16 +87,50 @@ class EarthquakeCog(commands.Cog):
                     button = discord.ui.Button(label="體感回報網頁", url=report_url, style=discord.ButtonStyle.link)
                     view.add_item(button)
                     
-                    # 發送至頻道
-                    for channel_id in self.target_channels:
-                        channel = self.bot.get_channel(channel_id)
-                        if channel:
-                            try:
-                                await channel.send(content=message_content, embed=embed, view=view)
-                            except discord.Forbidden:
-                                print(f"❌ 無法發送至頻道 {channel_id}：權限不足。")
-                        else:
-                            print(f"⚠️ 找不到頻道 {channel_id}。")
+                    # 讀取各伺服器的獨立設定
+                    try:
+                        with open('guild_settings.json', 'r', encoding='utf-8') as f:
+                            guild_settings = json.load(f)
+                    except Exception:
+                        guild_settings = {}
+                        
+                    try:
+                        mag_val = float(magnitude)
+                    except ValueError:
+                        mag_val = 0.0 # 若無法解析規模(如: 未知)，預設為0.0
+                        
+                    # 依據各伺服器設定決定是否發送與發送目標
+                    for guild_id, settings in guild_settings.items():
+                        # 若有指定目標伺服器，則跳過非目標的伺服器
+                        if target_guild_id and str(guild_id) != str(target_guild_id):
+                            continue
+                            
+                        # 若未開啟自動推送，則跳過
+                        if not settings.get("auto_push"):
+                            continue
+                            
+                        # 檢查規模是否達標
+                        if mag_val < settings.get("min_magnitude", 4.0):
+                            continue
+                            
+                        # 兼容新舊版設定，使用 target_channel_ids
+                        channel_ids = settings.get("target_channel_ids", [])
+                        legacy_id = settings.get("target_channel_id")
+                        if legacy_id and legacy_id not in channel_ids:
+                            channel_ids.append(legacy_id)
+                            
+                        if not channel_ids:
+                            continue
+                            
+                        for channel_id in channel_ids:
+                            channel = self.bot.get_channel(channel_id)
+                            if channel:
+                                try:
+                                    await channel.send(content=message_content, embed=embed, view=view)
+                                except discord.Forbidden:
+                                    print(f"❌ 無法發送至頻道 {channel_id}：權限不足。")
+                            else:
+                                print(f"⚠️ 找不到頻道 {channel_id}。")
                             
                     # 推送成功後的回報
                     if force:
@@ -120,25 +153,44 @@ class EarthquakeCog(commands.Cog):
 
     # ================= 傳統文字指令 *push =================
     @commands.command(name="push")
-    async def traditional_push(self, ctx):
-        if ctx.author.id != self.owner_id:
+    async def traditional_push(self, ctx, scope: str = "global"):
+        if not is_owner(ctx.author.id):
             return
         
+        target_guild_id = None
+        if scope.lower() == "local":
+            if not ctx.guild:
+                await ctx.send("❌ 「local (此伺服器)」選項只能在伺服器當中使用。")
+                return
+            target_guild_id = ctx.guild.id
+            
         temp_msg = await ctx.send("⏳ 正在抓取最新地震資料，請稍候...")
-        await self.fetch_and_send(force=True, ctx=ctx)
+        await self.fetch_and_send(force=True, target_guild_id=target_guild_id, ctx=ctx)
         await temp_msg.delete()
 
     # ================= 斜線指令 /push =================
-    @app_commands.command(name="push", description="強制推送最新的一筆地震報告")
-    async def slash_push(self, interaction: discord.Interaction):
+    @app_commands.command(name="push", description="強制推送最新的一筆地震報告 (僅限擁有者)")
+    @app_commands.describe(scope="推送範圍")
+    @app_commands.choices(scope=[
+        app_commands.Choice(name="此伺服器", value="local"),
+        app_commands.Choice(name="全域", value="global")
+    ])
+    async def slash_push(self, interaction: discord.Interaction, scope: app_commands.Choice[str]):
         # 權限檢查
-        if interaction.user.id != self.owner_id:
+        if not is_owner(interaction.user.id):
             await interaction.response.send_message("❌ 你沒有權限使用此指令。", ephemeral=True)
             return
         
+        target_guild_id = None
+        if scope.value == "local":
+            if not interaction.guild_id:
+                await interaction.response.send_message("❌ 「此伺服器」選項只能在伺服器當中使用。", ephemeral=True)
+                return
+            target_guild_id = interaction.guild_id
+            
         # 避免 API 超時，先顯示思考中 (僅限自己可見)
         await interaction.response.defer(ephemeral=True)
-        await self.fetch_and_send(force=True, interaction=interaction)
+        await self.fetch_and_send(force=True, target_guild_id=target_guild_id, interaction=interaction)
 
 async def setup(bot):
     await bot.add_cog(EarthquakeCog(bot))

@@ -34,15 +34,10 @@ class MyBot(commands.Bot):
         # 將傳統指令前綴設定為 *
         super().__init__(command_prefix='*', intents=intents)
 
-    async def setup_hook(self):
-        """
-        setup_hook 是一個非同步方法，在機器人準備好連線至 Discord 前會被呼叫。
-        這是在 discord.py 2.0+ 中載入擴充模組和同步應用程式指令（如斜線指令）的最佳位置。
-        """
-        
+    async def setup_hook(self):       
         # ================= 載入所有模組 (Cogs) =================
         try:
-            # 載入地震推播與 *push 指令
+            # 載入地震推播與 *push /push 指令
             await self.load_extension('cogs.earthquake')
             print("🔄 [模組] cogs.earthquake 載入完成")
             
@@ -58,13 +53,31 @@ class MyBot(commands.Bot):
             await self.load_extension('cogs.help')
             print("🔄 [模組] cogs.help 載入完成")
             
+            # 載入頻道設定指令 (/add, /remove)
+            await self.load_extension('cogs.channel')
+            print("🔄 [模組] cogs.channel 載入完成")
+
+            await self.load_extension('cogs.settings')
+            print("🔄 [模組] cogs.settings 載入完成")
+            
+            # 載入擁有者專用指令 (/shutdown, /restart)
+            await self.load_extension('cogs.owner')
+            print("🔄 [模組] cogs.owner 載入完成")
+            
+            # 載入關於機器人 (/about)
+            await self.load_extension('cogs.about')
+            print("🔄 [模組] cogs.about 載入完成")
+            
+            # 載入邀請網址 (/invite)
+            await self.load_extension('cogs.invite')
+            print("🔄 [模組] cogs.invite 載入完成")
+            
         except Exception as e:
             print(f"❌ 載入模組時發生錯誤: {e}")
         # ========================================================
 
         # ================= 同步斜線指令 =================
-        # 為了讓斜線指令立即生效，我們將它們同步到 config.json 中定義的特定伺服器。
-        # 全域同步 (不指定 guild) 可能需要長達一小時才能傳播給所有使用者。
+        # 讓斜線指令立即生效，可在 config.json 中設定 GUILD_IDS 為特定伺服器直接同步
         if GUILD_IDS:
             for guild_id in GUILD_IDS:
                 try:
@@ -81,8 +94,8 @@ class MyBot(commands.Bot):
                 except Exception as e:
                     print(f"❌ 同步至伺服器 {guild_id} 發生未預期的錯誤: {e}")
         else:
-            # 如果 config.json 中沒有提供 GUILD_IDS，則執行全域同步
-            print("🔄 [指令] 尚未設定 GUILD_IDS，準備執行全域指令同步 (這可能需要一段時間才能在客戶端看到更新)...")
+            # 如果 config.json 中沒有提供 GUILD_IDS，則執行全域同步，讓你等到下次 M8 都震完一個大序列都還沒顯示出來
+            print("🔄 [指令] 尚未設定 GUILD_IDS，準備執行全域指令同步 (需要一段時間才能在 Discord 看到選項)")
             try:
                 await self.tree.sync()
                 print("🔄 [指令] 全域指令同步完成。")
@@ -96,7 +109,7 @@ class MyBot(commands.Bot):
         print(f'✅ 目前時間: {discord.utils.utcnow().astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")}')
         print('====================================')
 
-# 實例化並啟動機器人
+# 原神，啟動！
 bot = MyBot()
 
 if __name__ == "__main__":
