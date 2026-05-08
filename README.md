@@ -12,46 +12,52 @@ If you encounter any issues, please contact the bot author.
 
 ## 功能 / Features
 
-- 自動推送地震報告：當有顯著有感地震發生時，自動將報告及體感回報連結推送到指定的伺服器頻道。
-- Automated Earthquake Push: Automatically pushes significant earthquake reports and "Did You Feel It?" URLs to designated server channels.
+### 自動推送地震報告 Automated Earthquake Report
 
-- 可自訂的推送設定：管理員可以透過互動式 UI 面板輕鬆設定自動推送的開關、目標頻道以及觸發推送的最低地震規模。
-- Customizable Push Settings: Administrators can easily configure the auto-push toggle, target channels, and minimum magnitude threshold via an interactive UI panel.
+- 當有顯著有感地震發生時，自動將報告及體感回報連結推送到指定的伺服器頻道。
+- Automatically pushes significant earthquake reports and "Did You Feel It?" URLs to designated server channels.
 
-- 即時查詢：手動查詢最新一筆地震資料。
-- Real-time Query: Manually query the latest earthquake data.
+### 自訂的推送設定 Customizable Push Settings
+
+- 管理員可以自訂要自動推送的頻道以及觸發推送的最低地震規模。
+- Server Administrators can easily configure the auto-push toggle, target channels, and minimum magnitude threshold via an interactive UI panel.
+
+### 即時查詢 Real-time Query
+- 手動查詢最新一筆地震資料，以及體感回報網址。
+- Manually query the latest earthquake data.
 
 ## 自行部署 / Self-Hosting
 
-### 1. 環境需求 (Prerequisites)
+### 環境需求 (Prerequisites)
 
 - python 3.8+
 - git
 
-### 2. 安裝步驟 (Installation)
+### 安裝步驟 (Installation)
 
-1.  **複製本專案 (Clone the repository)**
-    ```bash
-    git clone https://github.com/Tsu-shun/TWERG-bot.git
-    cd TWERG-bot
-    ```
+**複製本專案 (Clone the repository)**
+```bash
+git clone https://github.com/Tsu-shun/TWERG-bot.git
+cd TWERG-bot
+```
 
-2.  **安裝所需套件 (Install dependencies)**
-    ```bash
-    pip install discord.py
-    ```
+**安裝所需套件 (Install dependencies)**
+```bash
+pip install discord.py
+```
 
-### 3. 設定檔 (Configuration)
+### 設定檔 (Configuration)
 
 調整 `config.json` 
 
 ```
 - `DISCORD_TOKEN`: Discord 機器人 Token
 - `CWA_API_KEY`: 中央氣象署開放資料平臺 申請的 API 金鑰
-- `OWNER_ID`: 自己的 Discord 使用者 ID，用於執行擁有者限定指令 (如 `/shutdown`)。
-- `GUILD_IDS`: (選填) Discord 伺服器 ID 列表。用於即時同步斜線指令，若留空則會進行全域同步 (會等到天荒地老)。
+- `OWNER_ID`: 自己的 Discord 使用者 ID，用於執行擁有者限定指令 (如 `/shutdown`)
+- `GUILD_IDS`: (選填) Discord 伺服器 ID 列表。用於即時同步斜線指令，若留空則會進行全域同步 (會等到天荒地老)
+```
 
-### 4. 執行 (Run the bot)
+### 執行 (Run the bot)
 ```bash
 python bot.py
 ```
