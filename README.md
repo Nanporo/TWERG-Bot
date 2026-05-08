@@ -37,8 +37,8 @@ If you encounter any issues, please contact the bot author.
 
 **複製本專案 (Clone the repository)**
 ```bash
-git clone https://github.com/Nanporo/TWERG-bot.git
-cd TWERG-bot
+git clone https://github.com/Nanporo/TWERG-Bot.git
+cd TWERG-Bot
 ```
 
 **安裝所需套件 (Install dependencies)**
