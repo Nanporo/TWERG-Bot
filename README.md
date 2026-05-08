@@ -37,7 +37,7 @@ If you encounter any issues, please contact the bot author.
 
 **複製本專案 (Clone the repository)**
 ```bash
-git clone https://github.com/Tsu-shun/TWERG-bot.git
+git clone https://github.com/Nanporo/TWERG-bot.git
 cd TWERG-bot
 ```
 
