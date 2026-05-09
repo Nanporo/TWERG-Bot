@@ -146,7 +146,7 @@ class SettingsView(discord.ui.View):
         )
         
         # 解析狀態
-        auto_push_status = "`🟢` 已開啟" if self.settings.get("auto_push") else "`🔴` 已關閉"
+        auto_push_status = "`🟢` 已啟用" if self.settings.get("auto_push") else "`🔴` 已停用"
         channel_ids = self.settings.get("target_channel_ids", [])
         channel_status = "\n".join([f"<#{c_id}>" for c_id in channel_ids]) if channel_ids else "⚠️ 尚未設定"
         min_mag = self.settings.get("min_magnitude", 4.0)
