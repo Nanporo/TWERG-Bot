@@ -5,12 +5,8 @@
 **TWERG BOT** 是地牛記錄小組的 Discord 機器人。
 主要功能為自動推送地震體感回報網址，並附帶一些實用的地震相關簡易功能。
 
-如果您遇到任何問題，請聯絡機器人作者。
-
 **TWERG BOT** is a Discord bot for TWERG.
 Its main purpose is to automatically push [TWERG's "Did You Feel It?"](https://www.twerg.org/reports) (體感回報) URLs for earthquakes, along with some concise and useful earthquake-related features. 
-
-If you encounter any issues, please contact the bot author.
 
 ## 功能 / Features
 
@@ -28,12 +24,16 @@ If you encounter any issues, please contact the bot author.
 - 手動查詢最新一筆地震資料，以及體感回報網址。
 - Manually query the latest earthquake data.
 
+### YouTube 直播監控
+- 監控 YouTube 上的地震監視直播人數（預設為[台灣地震監視](https://www.youtube.com/@%E5%8F%B0%E7%81%A3%E5%9C%B0%E9%9C%87%E7%9B%A3%E8%A6%96)）
+- Monitor the viewers in the earthquake live streams on YouTube.
+
 ## 自行部署 / Self-Hosting
 
 ### 環境需求 (Prerequisites)
 
-- python 3.12
-- git
+- `python 3.12`
+- `git`
 
 ### 安裝步驟 (Installation)
 
@@ -71,6 +71,8 @@ python bot.py
 - `/dyfi` - 查詢最新一筆顯著有感地震報告並取得體感回報連結 / Query the latest significant earthquake report and get the "Did You Feel It" link
 - `/help` - 顯示使用幫助與可用指令清單 / Show help and available commands
 - `/invite` - 取得地牛記錄小組的 Discord 邀請網址 / Get the Discord invite link for TWERG
+- `/yt` - 查詢 YouTube 上的地震監視直播人數 / Query the number of viewers in the earthquake live streams on YouTube
+
 
 ### 管理員指令 / Administrator Commands (Requires Admin Permissions)
 - `/add` - 將目前頻道加入自動推送列表 / Add the current channel to the auto-push list
@@ -87,6 +89,14 @@ python bot.py
 機器人所獲取之資料僅作為參考以及學習用途，機器人作者以及地牛記錄小組不負擔任何責任。
 
 任何地震相關資訊必須以中央氣象署公告為準。
+
+## 其它 / Others
+
+此專案與 地牛Wake Up!、台灣地震監視、中央氣象署並無關聯。
+如果您遇到任何問題，請聯絡機器人作者。
+
+This project is not related to OX Wake Up!, Taiwan Earthquake Monitoring Channel and CWA.
+If you encounter any issues, please contact the BOT author.
 
 ## 相關連結 / Links
 
