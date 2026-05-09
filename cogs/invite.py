@@ -8,22 +8,12 @@ class InviteCog(commands.Cog):
 
     @app_commands.command(name="invite", description="取得地牛記錄小組的 Discord 邀請網址")
     async def invite_command(self, interaction: discord.Interaction):
-        message_content = "Discord 邀請網址"
+        message_content = "https://discord.gg/7sacMKp"
 
-        embed = discord.Embed(colour=0xff3a48)
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="官方網站", url="https://www.twerg.org", style=discord.ButtonStyle.link))
 
-        embed.add_field(
-            name="地牛記錄小組 Discord 伺服器",
-            value="https://discord.gg/7sacMKp",
-            inline=False
-        )
-        embed.add_field(
-            name="地牛記錄小組 官方網站",
-            value="https://www.twerg.org",
-            inline=False
-        )
-
-        await interaction.response.send_message(content=message_content, embed=embed)
+        await interaction.response.send_message(content=message_content, view=view)
 
 async def setup(bot):
     await bot.add_cog(InviteCog(bot))

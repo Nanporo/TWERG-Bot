@@ -5,14 +5,27 @@ import aiohttp
 import re
 import json
 import os
+import time
 
 class YTCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.video_url = "https://www.youtube.com/watch?v=KyT4qSK8lJo"
+        self.video_url = None
         self.last_viewers = None
+        self.last_notified = {}
         
-        self.monitor_task.start()
+        try:
+            with open('config.json', 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            video_id = config.get('YT_VIDEO_ID')
+        except Exception:
+            video_id = None
+            
+        if not video_id:
+            print("⚠️ 未填寫YouTube直播網址，直播監控功能將不可用")
+        else:
+            self.video_url = f"https://www.youtube.com/watch?v={video_id}"
+            self.monitor_task.start()
 
     def cog_unload(self):
         self.monitor_task.cancel()
@@ -85,6 +98,7 @@ class YTCog(commands.Cog):
             except Exception:
                 guild_settings = {}
 
+            current_time = time.time()
             for guild_id, settings in guild_settings.items():
                 # 確認有開啟監控，且增加的人數達到門檻
                 if not settings.get("yt_monitor_enabled", False):
@@ -93,26 +107,39 @@ class YTCog(commands.Cog):
                 if diff < threshold:
                     continue
                 
+                # 檢查是否在 15 分鐘 (900 秒) 冷卻時間內
+                if current_time - self.last_notified.get(guild_id, 0) < 900:
+                    continue
+
                 # 向所有設定好的監控頻道發送推播
                 channel_ids = settings.get("yt_target_channel_ids", [])
                 for channel_id in channel_ids:
                     channel = self.bot.get_channel(channel_id)
                     if channel:
                         try:
-                            embed = discord.Embed(title="⚠️ 可能有地震發生", description="台灣地震監視 YouTube 直播觀看人數增加", color=0xffffff)
+                            embed = discord.Embed(title="⚠️ 可能有地震發生？", description="台灣地震監視 YouTube 直播觀看人數增加", color=0xffffff)
                             embed.add_field(name="📈 增加人數", value=f"+{diff} 人", inline=True)
                             embed.add_field(name="👥 目前總人數", value=f"{current_viewers} 人", inline=True)
+                            embed.add_field(name="🕓 偵測時間", value=f"<t:{int(current_time)}:F>", inline=False)
+                            embed.set_footer(text="觀看人數僅供參考，實際地震資訊應以中央氣象署為準")
                             view = discord.ui.View()
-                            view.add_item(discord.ui.Button(label="觀看 YouTube 直播", url=self.video_url, style=discord.ButtonStyle.link))
+                            view.add_item(discord.ui.Button(label="YouTube 直播網址", url=self.video_url, style=discord.ButtonStyle.link))
                             await channel.send(embed=embed, view=view)
                         except discord.Forbidden:
                             pass
+
+                # 記錄該伺服器最後一次發送通知的時間
+                self.last_notified[guild_id] = current_time
 
         # 更新最後一次獲取的觀看人數
         self.last_viewers = current_viewers
 
     @app_commands.command(name="yt", description="查詢台灣地震監視 YouTube 直播觀看人數")
     async def yt_status(self, interaction: discord.Interaction):
+        if not self.video_url:
+            await interaction.response.send_message("⚠️ 未填寫YouTube直播網址，直播監控功能將不可用", ephemeral=True)
+            return
+            
         await interaction.response.defer()
         current_viewers = await self.get_live_viewers()
         
@@ -127,17 +154,7 @@ class YTCog(commands.Cog):
         if current_viewers is None:
             await interaction.followup.send("❌ 無法獲取直播觀看人數，可能是直播已結束或 YouTube 頁面結構改變。")
             return
-            
-        embed = discord.Embed(title="台灣地震監視 YouTube 直播監控狀態", url=self.video_url, color=0xffffff)
-        embed.add_field(name="目前觀看人數", value=f"{current_viewers} 人", inline=False)
-        
-        if self.last_viewers is not None:
-            diff = current_viewers - self.last_viewers
-            trend = "增加" if diff > 0 else "減少" if diff < 0 else "無變化"
-            embed.add_field(name="上次記錄人數 (前 5 分鐘)", value=f"{self.last_viewers} 人 ({trend} {abs(diff)} 人)", inline=False)
-        else:
-            embed.add_field(name="上次記錄人數", value="尚未有記錄 (等待下一次更新)", inline=False)
-            
+
         # 取得當前伺服器的設定門檻
         threshold = 1000
         if interaction.guild:
@@ -149,9 +166,24 @@ class YTCog(commands.Cog):
                     threshold = guild_settings[guild_id_str].get("yt_monitor_threshold", 1000)
             except Exception:
                 pass
-                
-        embed.set_footer(text=f"每 5 分鐘自動檢查，若觀看人數增加超過 {threshold} 人將發送警報。")
-        await interaction.followup.send(embed=embed)
+
+        embed = discord.Embed(title="台灣地震監視 直播監控狀態", description=f"每 5 分鐘自動檢查，若觀看人數增加超過 {threshold} 人將發送通知。", color=0xffffff)
+        embed.add_field(name="👥 目前觀看人數", value=f"{current_viewers} 人", inline=True)
+        
+        if self.last_viewers is not None:
+            diff = current_viewers - self.last_viewers
+            trend = "增加" if diff > 0 else "減少" if diff < 0 else "無變化"
+            embed.add_field(name="📊 上次記錄人數", value=f"{self.last_viewers} 人 \n`{trend} {abs(diff)} 人`", inline=True)
+        else:
+            embed.add_field(name="📊 上次記錄人數", value="尚未有記錄\n (等待下一次更新)", inline=True)
+            
+        embed.add_field(name="🕓 查詢時間", value=f"<t:{int(time.time())}:F>", inline=False)
+        embed.set_footer(text="僅供參考，請以原資料為準")
+        
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="YouTube 直播網址", url=self.video_url, style=discord.ButtonStyle.link))
+        
+        await interaction.followup.send(embed=embed, view=view)
 
 
 async def setup(bot):

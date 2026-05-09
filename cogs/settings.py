@@ -44,12 +44,12 @@ class YTSettingsView(discord.ui.View):
     def build_embed(self) -> discord.Embed:
         """建立 YouTube 監控設定 Embed 排版"""
         embed = discord.Embed(
-            title="📺 YouTube 直播監控設定",
+            title="`🖥️` YouTube 直播監控設定",
             description="調整當前伺服器的 YouTube 觀看人數監控選項。",
             color=0xffffff
         )
         
-        status = "🟢 已啟用" if self.settings.get("yt_monitor_enabled") else "🔴 已停用"
+        status = "`🟢` 已啟用" if self.settings.get("yt_monitor_enabled") else "`🔴` 已停用"
         channel_ids = self.settings.get("yt_target_channel_ids", [])
         channel_status = "\n".join([f"<#{c_id}>" for c_id in channel_ids]) if channel_ids else "⚠️ 尚未設定"
         threshold = self.settings.get("yt_monitor_threshold", 1000)
@@ -140,13 +140,13 @@ class SettingsView(discord.ui.View):
     def build_embed(self) -> discord.Embed:
         """根據當前設定建立 Embed 排版"""
         embed = discord.Embed(
-            title="⚙️ 伺服器地震推送設定",
+            title="`⚙️` 伺服器地震推送設定",
             description="調整當前伺服器的地震推送選項。",
             color=0xff3846
         )
         
         # 解析狀態
-        auto_push_status = "🟢 已開啟" if self.settings.get("auto_push") else "🔴 已關閉"
+        auto_push_status = "`🟢` 已開啟" if self.settings.get("auto_push") else "`🔴` 已關閉"
         channel_ids = self.settings.get("target_channel_ids", [])
         channel_status = "\n".join([f"<#{c_id}>" for c_id in channel_ids]) if channel_ids else "⚠️ 尚未設定"
         min_mag = self.settings.get("min_magnitude", 4.0)

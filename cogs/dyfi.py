@@ -60,7 +60,7 @@ class DyfiCog(commands.Cog):
 
                     # Embed 內容
                     report_url = f"https://www.twerg.org/dyfi?eq={current_no}"
-                    message_content = f"體感回報填寫（{current_no}）"
+                    message_content = f"📝 體感回報填寫（{current_no}）"
                     
                     embed = discord.Embed(title="顯著有感地震報告", description=report_url, color=0xff3846)
                     embed.add_field(name="編號", value=str(current_no), inline=True)

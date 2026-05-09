@@ -43,10 +43,10 @@ class EewNowCog(commands.Cog):
                         
                         embed = discord.Embed(color=0xffffff) 
                         
-                        embed.add_field(name="在線人數", value=f"{number} 人", inline=False)
-                        embed.add_field(name="查詢時間", value=discord_timestamp, inline=True)
+                        embed.add_field(name="👥 在線人數", value=f"{number} 人", inline=False)
+                        embed.add_field(name="🕓 查詢時間", value=discord_timestamp, inline=True)
                         
-                        embed.set_footer(text=f"資料來源 地牛Wake Up!")
+                        embed.set_footer(text=f"僅供參考 • 資料來源 地牛Wake Up!")
                         # ============================================
 
                         await interaction.followup.send(content=message_content, embed=embed)

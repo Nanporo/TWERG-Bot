@@ -8,9 +8,10 @@ class AboutCog(commands.Cog):
 
     @app_commands.command(name="about", description="顯示關於 TWERG BOT 的資訊")
     async def about_command(self, interaction: discord.Interaction):
+        
+        message_content = "ℹ️ 關於 TWERG BOT"
+
         embed = discord.Embed(
-            title="關於 TWERG BOT",
-            description="地牛記錄小組 官方網站\nhttps://www.twerg.org\n\n地牛記錄小組 Discord 伺服器\nhttps://discord.gg/7sacMKp",
             colour=0xff3a48
         )
 
@@ -26,12 +27,16 @@ class AboutCog(commands.Cog):
         )
         embed.add_field(
             name="版本",
-            value="1.0.1",
+            value="1.0.2",
             inline=False
         )
         embed.set_footer(text="作者 Kuuchi (kuuchi)", icon_url="https://avatars.githubusercontent.com/u/15816531?v=4")
         
-        await interaction.response.send_message(embed=embed)
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label="地牛記錄小組", url="https://www.twerg.org", style=discord.ButtonStyle.link))
+        view.add_item(discord.ui.Button(label="Discord 伺服器", url="https://discord.gg/7sacMKp", style=discord.ButtonStyle.link))
+        
+        await interaction.response.send_message(content=message_content, embed=embed, view=view)
 
 async def setup(bot):
     await bot.add_cog(AboutCog(bot))
