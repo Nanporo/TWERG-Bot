@@ -75,7 +75,7 @@ python bot.py
 ### 管理員指令 / Administrator Commands (Requires Admin Permissions)
 - `/add` - 將目前頻道加入自動推送列表 / Add the current channel to the auto-push list
 - `/remove` - 將目前頻道從自動推送列表移除 / Remove the current channel from the auto-push list
-- `/settings` - 調整伺服器的地震推送設定/ Modify server earthquake push settings
+- `/settings` - 調整機器人設定/ Modify BOT settings
 
 ### 擁有者指令 / Bot Owner Commands (Requires Bot Owner Status)
 - `/push` - 強制推送最新的一筆地震報告 / Force push the latest earthquake report

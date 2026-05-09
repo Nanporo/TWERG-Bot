@@ -14,7 +14,7 @@ class DyfiCog(commands.Cog):
             config = json.load(f)
         self.api_key = config['CWA_API_KEY']
 
-    @app_commands.command(name="dyfi", description="查詢最新一筆顯著有感地震報告並取得體感回報連結")
+    @app_commands.command(name="dyfi", description="查詢最新一筆體感回報連結")
     async def dyfi(self, interaction: discord.Interaction):
         # 避免 API 回應過慢導致超時報錯
         await interaction.response.defer()

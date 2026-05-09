@@ -2,3 +2,5 @@
 /cogs/__pycache__
 run.bat
 config.json
+/__pycache__
+guild_settings.json

@@ -16,7 +16,7 @@ class AboutCog(commands.Cog):
 
         embed.add_field(
             name="這個 BOT 是做什麼用的？",
-            value="主要功能為自動推送體感回報網址，附帶一些簡潔功能。\n如果您遇到任何問題，請聯絡機器人作者。",
+            value="主要功能為自動推送體感回報網址，附帶一些簡潔功能。\n為了避免洗版，提示只會推播顯著有感地震的報告。\n如果您遇到任何問題，請聯絡機器人作者。",
             inline=False
         )
         embed.add_field(
