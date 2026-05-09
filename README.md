@@ -32,7 +32,7 @@ If you encounter any issues, please contact the bot author.
 
 ### 環境需求 (Prerequisites)
 
-- python 3.8+
+- python 3.12
 - git
 
 ### 安裝步驟 (Installation)
