@@ -169,7 +169,7 @@ class EarthquakeCog(commands.Cog):
         await temp_msg.delete()
 
     # ================= 斜線指令 /push =================
-    @app_commands.command(name="push", description="強制推送最新的一筆地震報告 (僅限擁有者)")
+    @app_commands.command(name="push", description="（限擁有者）強制推送最新的一筆地震報告")
     @app_commands.describe(scope="推送範圍")
     @app_commands.choices(scope=[
         app_commands.Choice(name="此伺服器", value="local"),
