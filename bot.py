@@ -72,6 +72,10 @@ class MyBot(commands.Bot):
             await self.load_extension('cogs.invite')
             print("🔄 [模組] cogs.invite 載入完成")
             
+            # 載入 YouTube 直播監控 (/yt)
+            await self.load_extension('cogs.yt')
+            print("🔄 [模組] cogs.yt 載入完成")
+            
         except Exception as e:
             print(f"❌ 載入模組時發生錯誤: {e}")
         # ========================================================

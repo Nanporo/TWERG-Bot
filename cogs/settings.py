@@ -22,6 +22,99 @@ def save_settings(data):
     with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
+class YTSettingsView(discord.ui.View):
+    def __init__(self, guild_id: int):
+        super().__init__(timeout=None)
+        self.guild_id = str(guild_id)
+        self.all_settings = load_settings()
+        
+        if self.guild_id not in self.all_settings:
+            self.all_settings[self.guild_id] = {}
+            
+        self.settings = self.all_settings[self.guild_id]
+        
+        # 若無監控設定則初始化預設值
+        if "yt_monitor_enabled" not in self.settings:
+            self.settings["yt_monitor_enabled"] = False
+        if "yt_target_channel_ids" not in self.settings:
+            self.settings["yt_target_channel_ids"] = []
+        if "yt_monitor_threshold" not in self.settings:
+            self.settings["yt_monitor_threshold"] = 1000
+
+    def build_embed(self) -> discord.Embed:
+        """建立 YouTube 監控設定 Embed 排版"""
+        embed = discord.Embed(
+            title="📺 YouTube 直播監控設定",
+            description="調整當前伺服器的 YouTube 觀看人數監控選項。",
+            color=0xffffff
+        )
+        
+        status = "🟢 已啟用" if self.settings.get("yt_monitor_enabled") else "🔴 已停用"
+        channel_ids = self.settings.get("yt_target_channel_ids", [])
+        channel_status = "\n".join([f"<#{c_id}>" for c_id in channel_ids]) if channel_ids else "⚠️ 尚未設定"
+        threshold = self.settings.get("yt_monitor_threshold", 1000)
+        
+        embed.add_field(name="監控狀態", value=status, inline=False)
+        embed.add_field(name="監控發送頻道列表", value=channel_status, inline=False)
+        embed.add_field(name="監控變動人數閾值", value=f"增加 {threshold} 人以上", inline=False)
+        
+        return embed
+
+    @discord.ui.button(label="切換監控狀態", style=discord.ButtonStyle.primary, row=0)
+    async def toggle_yt_monitor(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.settings["yt_monitor_enabled"] = not self.settings.get("yt_monitor_enabled", False)
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+        
+    @discord.ui.button(label="體感回報設定", style=discord.ButtonStyle.secondary, row=0)
+    async def go_to_eq_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = SettingsView(self.guild_id)
+        await interaction.response.edit_message(embed=view.build_embed(), view=view)
+
+    @discord.ui.select(
+        cls=discord.ui.ChannelSelect, 
+        channel_types=[discord.ChannelType.text], 
+        placeholder="選擇監控發送頻道 (可多選，將覆蓋原設定)", 
+        min_values=0,
+        max_values=25,
+        row=1
+    )
+    async def select_yt_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect):
+        self.settings["yt_target_channel_ids"] = [c.id for c in select.values]
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.select(
+        placeholder="選擇變動人數閾值 (預設 1000)",
+        options=[
+            discord.SelectOption(label="增加 500 人以上", value="500"),
+            discord.SelectOption(label="增加 1000 人以上", value="1000"),
+            discord.SelectOption(label="增加 2000 人以上", value="2000"),
+            discord.SelectOption(label="增加 5000 人以上", value="5000"),
+            discord.SelectOption(label="增加 10000 人以上", value="10000"),
+            discord.SelectOption(label="增加 20000 人以上", value="20000"),
+            discord.SelectOption(label="增加 50000 人以上", value="50000"),
+        ],
+        row=2
+    )
+    async def select_yt_threshold(self, interaction: discord.Interaction, select: discord.ui.Select):
+        self.settings["yt_monitor_threshold"] = int(select.values[0])
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.button(label="保存", style=discord.ButtonStyle.success, row=3)
+    async def finish_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.edit_message(
+            content="✅ **設定已儲存**", 
+            embed=self.build_embed(), 
+            view=None
+        )
+        self.stop()
+
+
 class SettingsView(discord.ui.View):
     def __init__(self, guild_id: int):
         super().__init__(timeout=None) # 取消 Timeout，讓設定面板持續有效
@@ -49,7 +142,7 @@ class SettingsView(discord.ui.View):
         embed = discord.Embed(
             title="⚙️ 伺服器地震推送設定",
             description="調整當前伺服器的地震推送選項。",
-            color=0x2b2d31
+            color=0xff3846
         )
         
         # 解析狀態
@@ -74,6 +167,11 @@ class SettingsView(discord.ui.View):
         self.all_settings[self.guild_id] = self.settings
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
+        
+    @discord.ui.button(label="監控設定", style=discord.ButtonStyle.secondary, row=0)
+    async def go_to_yt_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = YTSettingsView(self.guild_id)
+        await interaction.response.edit_message(embed=view.build_embed(), view=view)
 
     @discord.ui.select(
         cls=discord.ui.ChannelSelect, 
@@ -115,13 +213,10 @@ class SettingsView(discord.ui.View):
     @discord.ui.button(label="保存", style=discord.ButtonStyle.success, row=3)
     async def finish_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         """其實沒有特別作用的確認按鈕"""
-        for child in self.children:
-            child.disabled = True
-            
         await interaction.response.edit_message(
             content="✅ **設定已儲存**", 
             embed=self.build_embed(), 
-            view=self
+            view=None
         )
         self.stop()
 
@@ -129,7 +224,7 @@ class SettingsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="settings", description="調整伺服器的地震自動推送設定")
+    @app_commands.command(name="settings", description="（限管理員）調整伺服器的地震自動推送設定")
     @app_commands.default_permissions(administrator=True) # 限管理員可用
     async def settings_command(self, interaction: discord.Interaction):
         # 確認指令是在伺服器內使用

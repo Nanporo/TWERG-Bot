@@ -25,7 +25,7 @@ class ChannelCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="add", description="將目前頻道加入自動推送的頻道列表")
+    @app_commands.command(name="add", description="（限管理員）將目前頻道加入自動推送的頻道列表")
     @app_commands.default_permissions(administrator=True) # 限管理員可用
     async def add_channel(self, interaction: discord.Interaction):
         if not interaction.guild:
@@ -62,7 +62,7 @@ class ChannelCog(commands.Cog):
         
         await interaction.response.send_message(f"✅ 已將 <#{channel_id}> 加入自動推送頻道列表。", ephemeral=True)
 
-    @app_commands.command(name="remove", description="將目前頻道從自動推送的頻道列表中移除")
+    @app_commands.command(name="remove", description="（限管理員）將目前頻道從自動推送的頻道列表中移除")
     @app_commands.default_permissions(administrator=True) # 限管理員可用
     async def remove_channel(self, interaction: discord.Interaction):
         if not interaction.guild:
