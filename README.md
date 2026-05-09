@@ -95,7 +95,7 @@ python bot.py
 此專案與 地牛Wake Up!、台灣地震監視、中央氣象署並無關聯。
 如果您遇到任何問題，請聯絡機器人作者。
 
-This project is not related to OX Wake Up!, Taiwan Earthquake Monitoring Channel and CWA.
+This project is not related to OXWU, Taiwan Earthquake Monitoring Channel and CWA.
 If you encounter any issues, please contact the BOT author.
 
 ## 相關連結 / Links
