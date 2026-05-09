@@ -12,11 +12,12 @@ class AboutCog(commands.Cog):
         message_content = "ℹ️ 關於 TWERG BOT"
 
         embed = discord.Embed(
+            title="這個 BOT 是做什麼用的？", 
             colour=0xff3a48
         )
 
         embed.add_field(
-            name="這個 BOT 是做什麼用的？",
+            name="",
             value="主要功能為自動推送體感回報網址，附帶一些簡潔功能。\n為了避免洗版，提示只會推播顯著有感地震的報告。\n如果您遇到任何問題，請聯絡機器人作者。",
             inline=False
         )
@@ -30,7 +31,7 @@ class AboutCog(commands.Cog):
             value="1.0.2",
             inline=False
         )
-        embed.set_footer(text="作者 Kuuchi (kuuchi)", icon_url="https://avatars.githubusercontent.com/u/15816531?v=4")
+        embed.set_footer(text="作者 Kuuchi (kuuchi) • Support by TWERG", icon_url="https://avatars.githubusercontent.com/u/15816531?v=4")
         
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label="地牛記錄小組", url="https://www.twerg.org", style=discord.ButtonStyle.link))

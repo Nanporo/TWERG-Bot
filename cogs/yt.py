@@ -117,7 +117,11 @@ class YTCog(commands.Cog):
                     channel = self.bot.get_channel(channel_id)
                     if channel:
                         try:
-                            embed = discord.Embed(title="⚠️ 可能有地震發生？", description="台灣地震監視 YouTube 直播觀看人數增加", color=0xffffff)
+                            embed = discord.Embed(
+                                title="⚠️ 可能有地震發生？", 
+                                description="台灣地震監視 YouTube 直播觀看人數增加", 
+                                color=0xffffff
+                                )
                             embed.add_field(name="📈 增加人數", value=f"+{diff} 人", inline=True)
                             embed.add_field(name="👥 目前總人數", value=f"{current_viewers} 人", inline=True)
                             embed.add_field(name="🕓 偵測時間", value=f"<t:{int(current_time)}:F>", inline=False)
@@ -167,7 +171,11 @@ class YTCog(commands.Cog):
             except Exception:
                 pass
 
-        embed = discord.Embed(title="台灣地震監視 直播監控狀態", description=f"每 5 分鐘自動檢查，若觀看人數增加超過 {threshold} 人將發送通知。", color=0xffffff)
+        embed = discord.Embed(
+            title="台灣地震監視 直播監控狀態", 
+            description=f"每 5 分鐘自動檢查，若觀看人數增加超過 {threshold} 人將發送通知。", 
+            color=0xffffff
+            )
         embed.add_field(name="👥 目前觀看人數", value=f"{current_viewers} 人", inline=True)
         
         if self.last_viewers is not None:
