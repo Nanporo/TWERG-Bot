@@ -67,6 +67,8 @@ class DyfiCog(commands.Cog):
                     embed.add_field(name="規模", value=f"芮氏 {magnitude}", inline=True)
                     embed.add_field(name="深度", value=f"{focal_depth} 公里", inline=True)
                     embed.add_field(name="發生時間", value=discord_time, inline=False)
+
+                    embed.set_footer(text=f"僅供參考，實際資訊請以中央氣象署發佈為準")
                     
                     view = discord.ui.View()
                     button = discord.ui.Button(label="體感回報網頁", url=report_url, style=discord.ButtonStyle.link)

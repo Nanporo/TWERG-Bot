@@ -121,7 +121,7 @@ class YTCog(commands.Cog):
                             embed.add_field(name="📈 增加人數", value=f"+{diff} 人", inline=True)
                             embed.add_field(name="👥 目前總人數", value=f"{current_viewers} 人", inline=True)
                             embed.add_field(name="🕓 偵測時間", value=f"<t:{int(current_time)}:F>", inline=False)
-                            embed.set_footer(text="觀看人數僅供參考，實際地震資訊應以中央氣象署為準")
+                            embed.set_footer(text="觀看人數僅供參考，實際地震資訊請以中央氣象署為準")
                             view = discord.ui.View()
                             view.add_item(discord.ui.Button(label="YouTube 直播網址", url=self.video_url, style=discord.ButtonStyle.link))
                             await channel.send(embed=embed, view=view)
