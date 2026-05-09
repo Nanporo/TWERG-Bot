@@ -3,9 +3,11 @@
 ## 關於 / About
 
 **TWERG BOT** 是地牛記錄小組的 Discord 機器人。
-主要功能為自動推送地震體感回報網址，並附帶一些實用的地震相關簡易功能。
+
+主要功能為自動推送[地震體感回報網址](https://www.twerg.org/reports)，並附帶一些實用的簡易功能。
 
 **TWERG BOT** is a Discord bot for TWERG.
+
 Its main purpose is to automatically push [TWERG's "Did You Feel It?"](https://www.twerg.org/reports) (體感回報) URLs for earthquakes, along with some concise and useful earthquake-related features. 
 
 ## 功能 / Features
@@ -18,7 +20,7 @@ Its main purpose is to automatically push [TWERG's "Did You Feel It?"](https://w
 ### 自訂的推送設定 Customizable Push Settings
 
 - 管理員可以自訂要自動推送的頻道以及觸發推送的最低地震規模。
-- Server Administrators can easily configure the auto-push toggle, target channels, and minimum magnitude threshold via an interactive UI panel.
+- Server Administrators can configure the auto-push toggle, target channels, and minimum magnitude in settings.
 
 ### 即時查詢 Real-time Query
 - 手動查詢最新一筆地震資料，以及體感回報網址。
@@ -93,9 +95,11 @@ python bot.py
 ## 其它 / Others
 
 此專案與 地牛Wake Up!、台灣地震監視、中央氣象署並無關聯。
+
 如果您遇到任何問題，請聯絡機器人作者。
 
 This project is not related to OXWU, Taiwan Earthquake Monitoring Channel and CWA.
+
 If you encounter any issues, please contact the BOT author.
 
 ## 相關連結 / Links
