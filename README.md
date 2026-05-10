@@ -1,7 +1,5 @@
 # TWERG BOT
 
-## 關於 / About
-
 **TWERG BOT** 是地牛記錄小組的 Discord 機器人。
 
 主要功能為自動推送[地震體感回報網址](https://www.twerg.org/reports)，並附帶一些實用的簡易功能。
@@ -109,6 +107,11 @@ If you encounter any issues, please contact the BOT author.
 - 地牛記錄小組 Discord (Discord Server): https://discord.gg/7sacMKp
 - Facebook: https://www.facebook.com/earthquakerecording
 - Threads: https://www.threads.com/@taiwanerg
+
+## 特別感謝 / Special Thanks
+
+- `yoworingo` 提供體感回報方面的建議
+- `easontet` 提供計算公式
 
 ## 授權 / License
 
