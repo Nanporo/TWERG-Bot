@@ -63,7 +63,7 @@ class DyfiReportCog(commands.Cog):
                         calibrated_discord_time = "無資料"
                         
                     # 以下可依據後續需求隨時調整排版格式
-                    message_content = f"📑 體感回報（{eq_no}）"
+                    message_content = f"📑 體感回報結果（{eq_no}）"
                     
                     embed = discord.Embed(
                         title=f"30分鐘初步統計",
