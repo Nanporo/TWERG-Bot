@@ -117,6 +117,7 @@ class EarthquakeCog(commands.Cog):
                             return
 
                     pushed_channels = []
+                    dyfi_scheduled_channels = []
                     # 依據各伺服器設定決定是否發送與發送目標
                     for guild_id, settings in guild_settings.items():
                         # 若有指定目標伺服器，則跳過非目標的伺服器
@@ -130,6 +131,9 @@ class EarthquakeCog(commands.Cog):
                         # 檢查規模是否達標
                         if mag_val < settings.get("min_magnitude", 4.0):
                             continue
+                            
+                        # 是否發送30分鐘後初步統計 (預設開啟)
+                        auto_dyfi = settings.get("auto_dyfi_report", True)
                             
                         # 兼容新舊版設定，使用 target_channel_ids
                         channel_ids = settings.get("target_channel_ids", [])
@@ -148,6 +152,8 @@ class EarthquakeCog(commands.Cog):
                                         await channel.send(content=message_content, embed=embed, view=view)
                                         if channel not in pushed_channels:
                                             pushed_channels.append(channel)
+                                        if auto_dyfi and channel not in dyfi_scheduled_channels:
+                                            dyfi_scheduled_channels.append(channel)
                                     except discord.Forbidden:
                                         print(f"❌ 無法發送至頻道 {channel_id}：權限不足。")
                                 elif push_type == "dyfi":
@@ -158,7 +164,8 @@ class EarthquakeCog(commands.Cog):
                                 
                     if pushed_channels:
                         if push_type == "report":
-                            self.bot.dispatch("earthquake_pushed", current_no, pushed_channels)
+                            if dyfi_scheduled_channels:
+                                self.bot.dispatch("earthquake_pushed", current_no, dyfi_scheduled_channels)
                         elif push_type == "dyfi":
                             self.bot.dispatch("force_dyfi_report", current_no, pushed_channels)
                             

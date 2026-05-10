@@ -5,6 +5,14 @@ from discord import app_commands
 class AboutCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.version = "1.0.3"
+        self.ready_printed = False
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        if not self.ready_printed:
+            print(f"🤖 TWERG BOT 當前版本: {self.version}")
+            self.ready_printed = True
 
     @app_commands.command(name="about", description="顯示關於 TWERG BOT 的資訊")
     async def about_command(self, interaction: discord.Interaction):
@@ -28,7 +36,7 @@ class AboutCog(commands.Cog):
         )
         embed.add_field(
             name="版本",
-            value="1.0.3",
+            value=self.version,
             inline=False
         )
         embed.set_footer(text="作者 Kuuchi (kuuchi) • Support by TWERG", icon_url="https://avatars.githubusercontent.com/u/15816531?v=4")

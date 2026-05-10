@@ -43,7 +43,8 @@ class ChannelCog(commands.Cog):
             settings[guild_id] = {
                 "auto_push": False,
                 "target_channel_ids": [],
-                "min_magnitude": 4.0
+                "min_magnitude": 4.0,
+                "auto_dyfi_report": True
             }
             
         guild_setting = settings[guild_id]

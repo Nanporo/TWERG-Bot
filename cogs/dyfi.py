@@ -127,7 +127,7 @@ class DyfiView(discord.ui.View):
         select.callback = select_callback
         self.add_item(select)
 
-        # 2. 建立輔助切換按鈕 (⬅️ 上一筆 / ➡️ 下一筆 / 確認)
+        # 2. 建立輔助切換按鈕 (⬅️ 上一筆 / ➡️ 下一筆)
         btn_prev = discord.ui.Button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=1, disabled=(self.current_index == 0))
         async def btn_prev_callback(interaction: discord.Interaction):
             await self.change_page(interaction, self.current_index - 1)
@@ -139,17 +139,6 @@ class DyfiView(discord.ui.View):
             await self.change_page(interaction, self.current_index + 1)
         btn_next.callback = btn_next_callback
         self.add_item(btn_next)
-
-        btn_confirm = discord.ui.Button(label="確認", style=discord.ButtonStyle.success, row=1)
-        async def btn_confirm_callback(interaction: discord.Interaction):
-            # 將除了網址按鈕以外的控制項全部設為禁用狀態 (灰色)
-            for child in self.children:
-                if getattr(child, "style", None) != discord.ButtonStyle.link:
-                    child.disabled = True
-            await interaction.response.edit_message(view=self)
-            self.stop()
-        btn_confirm.callback = btn_confirm_callback
-        self.add_item(btn_confirm)
         
         # 3. 建立網址按鈕
         display_no = str(self.earthquakes[self.current_index].get('EarthquakeNo'))
