@@ -28,7 +28,7 @@ class AboutCog(commands.Cog):
         )
         embed.add_field(
             name="版本",
-            value="1.0.2",
+            value="1.0.3",
             inline=False
         )
         embed.set_footer(text="作者 Kuuchi (kuuchi) • Support by TWERG", icon_url="https://avatars.githubusercontent.com/u/15816531?v=4")

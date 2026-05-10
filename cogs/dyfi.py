@@ -55,12 +55,12 @@ async def generate_dyfi_message(eq_data):
         # 過濾異常警告的資料
         town_cdi = [town for town in town_cdi if str(town.get("anomalyWarning", 0)) != "1"]
         
-        # 依據 grade 權重與精準的體感震度 cdi 值由大到小排序，並取出前 8 筆
+        # 依據 grade 權重與精準的體感震度 cdi 值由大到小排序，並取出前 10 筆
         grade_order = {"7": 10, "6強": 9, "6+": 9, "6弱": 8, "6-": 8, "5強": 7, "5+": 7, "5弱": 6, "5-": 6, "4": 5, "3": 4, "2": 3, "1": 2, "0": 1}
         town_cdi.sort(key=lambda x: (grade_order.get(str(x.get("grade", "0")), 0), x.get("cdi", 0.0)), reverse=True)
         grade_map = {"0": "⚫", "1": "⚪", "2": "🟢", "3": "🔵", "4": "🟡", "5-": "🟠", "5弱": "🟠", "5+": "🟤", "5強": "🟤", "6-": "🔴", "6弱": "🔴", "6+": "🟣", "6強": "🟣", "7": "🛑"}
         top_towns = []
-        for town in town_cdi[:8]:
+        for town in town_cdi[:10]:
             grade = str(town.get("grade", "0"))
             emoji = grade_map.get(grade, "⚫")
             fw_grade = grade.translate(str.maketrans("01234567-+", "０１２３４５６７－＋"))
@@ -82,7 +82,7 @@ async def generate_dyfi_message(eq_data):
     embed.add_field(name="📊 回報數量", value=f"{total_reports} 筆", inline=True)
     embed.add_field(name="✅ 認可數量", value=f"{valid_reports} 筆", inline=True)
     embed.add_field(name="🕓 體感回報統計時間", value=calibrated_discord_time, inline=False)
-    embed.add_field(name="體感回報內容 (最大8筆)", value=towns_value, inline=False)
+    embed.add_field(name="最大回報內容", value=towns_value, inline=False)
     embed.set_footer(text=f"地震資訊請以中央氣象署發佈為準")
     
     return message_content, embed

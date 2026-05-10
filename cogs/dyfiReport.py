@@ -84,9 +84,9 @@ class DyfiReportCog(commands.Cog):
                         town_cdi.sort(key=lambda x: (grade_order.get(str(x.get("grade", "0")), 0), x.get("cdi", 0.0)), reverse=True)
                         
                         grade_map = {"0": "⚫", "1": "⚪", "2": "🟢", "3": "🔵", "4": "🟡", "5-": "🟠", "5弱": "🟠", "5+": "🟤", "5強": "🟤", "6-": "🔴", "6弱": "🔴", "6+": "🟣", "6強": "🟣", "7": "🛑"}
-                        # 排序後，取出最多前 8 筆市區資料當作範例顯示
+                        # 排序後，取出最多前 10 筆市區資料當作範例顯示
                         top_towns = []
-                        for town in town_cdi[:8]:
+                        for town in town_cdi[:10]:
                             county = town.get("countyName", "")
                             town_name = town.get("townName", "")
                             grade = str(town.get("grade", "0"))
@@ -100,7 +100,7 @@ class DyfiReportCog(commands.Cog):
                         towns_value = "目前無回報資料"
                         
                     embed.add_field(
-                        name="體感回報內容 (最大8筆)",
+                        name="最大回報內容",
                         value=towns_value,
                         inline=False
                     )
