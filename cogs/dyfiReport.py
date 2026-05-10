@@ -56,7 +56,7 @@ class DyfiReportCog(commands.Cog):
                     if calibrated_at_str:
                         try:
                             calibrated_dt = datetime.fromisoformat(calibrated_at_str.replace("Z", "+00:00"))
-                            calibrated_discord_time = f"<t:{int(calibrated_dt.timestamp())}:F>"
+                            calibrated_discord_time = f"<t:{int(calibrated_dt.timestamp())}:f>"
                         except ValueError:
                             calibrated_discord_time = calibrated_at_str
                     else:
@@ -106,11 +106,14 @@ class DyfiReportCog(commands.Cog):
                         inline=False
                     )
                     
-                    embed.set_footer(text="地震資訊請以中央氣象署發佈為準 • 地牛記錄小組")
+                    embed.set_footer(text="地震資訊請以中央氣象署發佈為準")
                     
                     view = discord.ui.View()
-                    btn_url = discord.ui.Button(label="體感回報網頁", url=f"https://www.twerg.org/dyfi?eq={eq_no}", style=discord.ButtonStyle.link)
+                    btn_url = discord.ui.Button(label="體感回報表單", url=f"https://www.twerg.org/dyfi?eq={eq_no}", style=discord.ButtonStyle.link)
                     view.add_item(btn_url)
+
+                    btn_recent_reports = discord.ui.Button(label="最近地震報告", url="https://www.twerg.org/reports", style=discord.ButtonStyle.link, row=2)
+                    view.add_item(btn_recent_reports)
                     
                     for channel in channels:
                         try:

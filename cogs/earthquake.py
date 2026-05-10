@@ -70,7 +70,7 @@ class EarthquakeCog(commands.Cog):
                         tw_tz = timezone(timedelta(hours=8))
                         dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
                         dt = dt.replace(tzinfo=tw_tz)
-                        discord_time = f"<t:{int(dt.timestamp())}:F>"
+                        discord_time = f"<t:{int(dt.timestamp())}:f>"
                     except ValueError:
                         discord_time = origin_time_str
 

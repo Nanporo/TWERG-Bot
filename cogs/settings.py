@@ -67,7 +67,7 @@ class YTSettingsView(discord.ui.View):
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
         
-    @discord.ui.button(label="體感回報設定", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(label="體感回報設定", style=discord.ButtonStyle.secondary, row=3)
     async def go_to_eq_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = SettingsView(self.guild_id)
         await interaction.response.edit_message(embed=view.build_embed(), view=view)
@@ -87,10 +87,10 @@ class YTSettingsView(discord.ui.View):
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
     @discord.ui.select(
-        placeholder="選擇變動人數閾值 (預設 1000)",
+        placeholder="選擇變動人數閾值",
         options=[
             discord.SelectOption(label="增加 500 人以上", value="500"),
-            discord.SelectOption(label="增加 1000 人以上", value="1000"),
+            discord.SelectOption(label="增加 1000 人以上（預設）", value="1000"),
             discord.SelectOption(label="增加 2000 人以上", value="2000"),
             discord.SelectOption(label="增加 5000 人以上", value="5000"),
             discord.SelectOption(label="增加 10000 人以上", value="10000"),
@@ -186,7 +186,7 @@ class SettingsView(discord.ui.View):
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
         
-    @discord.ui.button(label="監控設定", style=discord.ButtonStyle.secondary, row=0)
+    @discord.ui.button(label="監控設定", style=discord.ButtonStyle.secondary, row=3)
     async def go_to_yt_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = YTSettingsView(self.guild_id)
         await interaction.response.edit_message(embed=view.build_embed(), view=view)

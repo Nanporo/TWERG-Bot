@@ -19,7 +19,7 @@ async def generate_dyfi_message(eq_data):
         tw_tz = timezone(timedelta(hours=8))
         dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
         dt = dt.replace(tzinfo=tw_tz)
-        discord_time = f"<t:{int(dt.timestamp())}:F>"
+        discord_time = f"<t:{int(dt.timestamp())}:f>"
     except ValueError:
         discord_time = origin_time_str
 
@@ -44,7 +44,7 @@ async def generate_dyfi_message(eq_data):
         try:
             # 處理 API 回傳的 ISO 8601 格式時間並轉為時間戳
             calibrated_dt = datetime.fromisoformat(calibrated_at_str.replace("Z", "+00:00"))
-            calibrated_discord_time = f"<t:{int(calibrated_dt.timestamp())}:F>"
+            calibrated_discord_time = f"<t:{int(calibrated_dt.timestamp())}:f>"
         except ValueError:
             calibrated_discord_time = calibrated_at_str
     else:
@@ -75,7 +75,7 @@ async def generate_dyfi_message(eq_data):
     report_url = f"https://www.twerg.org/dyfi?eq={current_no}"
     message_content = f"📝 體感回報填寫（{current_no}）"
     
-    embed = discord.Embed(title="顯著有感地震報告", description=report_url, color=0xff3846)
+    embed = discord.Embed(title="顯著有感地震報告", description=report_url, color=0x3498db)
     embed.add_field(name="編號", value=str(current_no), inline=True)
     embed.add_field(name="規模", value=f"芮氏 {magnitude}", inline=True)
     embed.add_field(name="深度", value=f"{focal_depth} 公里", inline=True)
@@ -99,8 +99,7 @@ class DyfiView(discord.ui.View):
 
     def update_components(self):
         self.clear_items()
-        
-        # 1. 建立選單
+
         options = []
         for eq in self.earthquakes:
             eq_no = eq.get('EarthquakeNo')
@@ -127,24 +126,13 @@ class DyfiView(discord.ui.View):
             await self.change_page(interaction, idx)
         select.callback = select_callback
         self.add_item(select)
-
-        # 2. 建立輔助切換按鈕 (⬅️ 上一筆 / ➡️ 下一筆)
-        btn_prev = discord.ui.Button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=1, disabled=(self.current_index == 0))
-        async def btn_prev_callback(interaction: discord.Interaction):
-            await self.change_page(interaction, self.current_index - 1)
-        btn_prev.callback = btn_prev_callback
-        self.add_item(btn_prev)
-
-        btn_next = discord.ui.Button(emoji="➡️", style=discord.ButtonStyle.secondary, row=1, disabled=(self.current_index == len(self.earthquakes) - 1))
-        async def btn_next_callback(interaction: discord.Interaction):
-            await self.change_page(interaction, self.current_index + 1)
-        btn_next.callback = btn_next_callback
-        self.add_item(btn_next)
         
-        # 3. 建立網址按鈕
         display_no = str(self.earthquakes[self.current_index].get('EarthquakeNo'))
-        btn_url = discord.ui.Button(label="體感回報網頁", url=f"https://www.twerg.org/dyfi?eq={display_no}", style=discord.ButtonStyle.link, row=2)
-        self.add_item(btn_url)
+        btn_dyfi_form = discord.ui.Button(label="體感回報表單", url=f"https://www.twerg.org/dyfi?eq={display_no}", style=discord.ButtonStyle.link, row=2)
+        self.add_item(btn_dyfi_form)
+
+        btn_recent_reports = discord.ui.Button(label="最近地震報告", url="https://www.twerg.org/reports", style=discord.ButtonStyle.link, row=2)
+        self.add_item(btn_recent_reports)
 
     async def change_page(self, interaction: discord.Interaction, new_index: int):
         await interaction.response.defer()
@@ -166,7 +154,7 @@ class DyfiCog(commands.Cog):
             config = json.load(f)
         self.api_key = config['CWA_API_KEY']
 
-    @app_commands.command(name="dyfi", description="查詢近期顯著有感地震的體感回報報告 (提供選單切換)")
+    @app_commands.command(name="dyfi", description="查詢近期顯著有感地震的體感回報報告")
     async def dyfi(self, interaction: discord.Interaction):
         # 避免 API 回應過慢導致超時報錯
         await interaction.response.defer()

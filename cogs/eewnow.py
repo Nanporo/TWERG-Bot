@@ -31,7 +31,7 @@ class EewNowCog(commands.Cog):
                         
                         # 取得當前時間
                         current_time = time.time()
-                        discord_timestamp = f"<t:{int(current_time)}:F>"
+                        discord_timestamp = f"<t:{int(current_time)}:f>"
                         
                         # 為了 footer，轉換為可讀的台灣時間字串
                         tw_tz = timezone(timedelta(hours=8))

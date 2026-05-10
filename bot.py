@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import json
 import sys
+import os
 from datetime import timezone, timedelta
 
 # ================= 讀取設定檔 =================
@@ -37,51 +38,12 @@ class MyBot(commands.Bot):
     async def setup_hook(self):       
         # ================= 載入所有模組 (Cogs) =================
         try:
-            # 載入地震推播與 *push /push 指令
-            await self.load_extension('cogs.earthquake')
-            print("🔄 [模組] cogs.earthquake 載入完成")
-            
-            # 載入地牛 Wake Up! 在線人數查詢 (/eewnow)
-            await self.load_extension('cogs.eewnow')
-            print("🔄 [模組] cogs.eewnow 載入完成")
-            
-            # 載入單次地震查詢 (/dyfi)
-            await self.load_extension('cogs.dyfi')
-            print("🔄 [模組] cogs.dyfi 載入完成")
-            
-            # 載入幫助選單 (/help)
-            await self.load_extension('cogs.help')
-            print("🔄 [模組] cogs.help 載入完成")
-            
-            # 載入頻道設定指令 (/add, /remove)
-            await self.load_extension('cogs.channel')
-            print("🔄 [模組] cogs.channel 載入完成")
-
-            await self.load_extension('cogs.settings')
-            print("🔄 [模組] cogs.settings 載入完成")
-            
-            # 載入擁有者專用指令 (/shutdown, /restart)
-            await self.load_extension('cogs.owner')
-            print("🔄 [模組] cogs.owner 載入完成")
-            
-            # 載入關於機器人 (/about)
-            await self.load_extension('cogs.about')
-            print("🔄 [模組] cogs.about 載入完成")
-            
-            # 載入邀請網址 (/invite)
-            await self.load_extension('cogs.invite')
-            print("🔄 [模組] cogs.invite 載入完成")
-            
-            # 載入 YouTube 直播監控 (/yt)
-            await self.load_extension('cogs.yt')
-            print("🔄 [模組] cogs.yt 載入完成")
-
-            # 載入地震體感回報推播 (地震發生後 30 分鐘自動發送)
-            await self.load_extension('cogs.dyfiReport')
-            print("🔄 [模組] cogs.dyfiReport 載入完成")
-
-            await self.load_extension('cogs.kkw')
-            print("🔄 [模組] cogs.kkw 載入完成")
+            # 自動載入 cogs/ 資料夾下的所有 .py 檔案
+            for filename in os.listdir('./cogs'):
+                if filename.endswith('.py'):
+                    extension_name = f'cogs.{filename[:-3]}'
+                    await self.load_extension(extension_name)
+                    print(f"🔄 [模組] {extension_name} 載入完成")
             
         except Exception as e:
             print(f"❌ 載入模組時發生錯誤: {e}")
