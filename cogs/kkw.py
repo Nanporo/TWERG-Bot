@@ -8,7 +8,8 @@ class KKWCog(commands.Cog):
 
     @app_commands.command(name="kkw", description="計算地震規模相等於多少顆原子彈的能量")
     @app_commands.describe(magnitude="輸入地震規模 (例如: 6.2)")
-    async def kkw_command(self, interaction: discord.Interaction, magnitude: float):
+    async def kkw_command(self, interaction: discord.Interaction, magnitude: app_commands.Range[float, 0.0, 10.0]):
+
         # E = 2^((M - 6.2) / 0.2)
         e = 2 ** ((magnitude - 6.2) / 0.2)
         
