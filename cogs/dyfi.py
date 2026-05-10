@@ -4,6 +4,168 @@ from discord import app_commands
 import aiohttp
 import json
 from datetime import datetime, timezone, timedelta
+import asyncio
+
+async def generate_dyfi_message(eq_data):
+    """將指定的地震資料轉換為 Discord 訊息與 Embed 的輔助函數"""
+    current_no = eq_data.get('EarthquakeNo')
+    eq_info = eq_data.get('EarthquakeInfo', {})
+    origin_time_str = eq_info.get('OriginTime', '')
+    magnitude = eq_info.get('EarthquakeMagnitude', {}).get('MagnitudeValue', '未知')
+    focal_depth = eq_info.get('FocalDepth', '未知')
+    
+    # 轉換時間戳記
+    try:
+        tw_tz = timezone(timedelta(hours=8))
+        dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
+        dt = dt.replace(tzinfo=tw_tz)
+        discord_time = f"<t:{int(dt.timestamp())}:F>"
+    except ValueError:
+        discord_time = origin_time_str
+
+    # 獨立抓取體感回報資料
+    dyfi_url = f"https://www.twerg.org/api/dyfi-reports?eq_no={current_no}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(dyfi_url) as dyfi_response:
+                if dyfi_response.status == 200:
+                    dyfi_data = await dyfi_response.json()
+                else:
+                    dyfi_data = {}
+    except Exception:
+        dyfi_data = {}
+
+    meta = dyfi_data.get("meta", {})
+    total_reports = meta.get("totalReports", 0)
+    valid_reports = meta.get("validReports", 0)
+    calibrated_at_str = meta.get("calibratedAt", "")
+    
+    if calibrated_at_str:
+        try:
+            # 處理 API 回傳的 ISO 8601 格式時間並轉為時間戳
+            calibrated_dt = datetime.fromisoformat(calibrated_at_str.replace("Z", "+00:00"))
+            calibrated_discord_time = f"<t:{int(calibrated_dt.timestamp())}:F>"
+        except ValueError:
+            calibrated_discord_time = calibrated_at_str
+    else:
+        calibrated_discord_time = "無資料"
+
+    town_cdi = dyfi_data.get("townCDI", [])
+    if town_cdi:
+        # 過濾異常警告的資料
+        town_cdi = [town for town in town_cdi if str(town.get("anomalyWarning", 0)) != "1"]
+        
+        # 依據 grade 權重與精準的體感震度 cdi 值由大到小排序，並取出前 8 筆
+        grade_order = {"7": 10, "6強": 9, "6+": 9, "6弱": 8, "6-": 8, "5強": 7, "5+": 7, "5弱": 6, "5-": 6, "4": 5, "3": 4, "2": 3, "1": 2, "0": 1}
+        town_cdi.sort(key=lambda x: (grade_order.get(str(x.get("grade", "0")), 0), x.get("cdi", 0.0)), reverse=True)
+        grade_map = {"0": "⚫", "1": "⚪", "2": "🟢", "3": "🔵", "4": "🟡", "5-": "🟠", "5弱": "🟠", "5+": "🟤", "5強": "🟤", "6-": "🔴", "6弱": "🔴", "6+": "🟣", "6強": "🟣", "7": "🛑"}
+        top_towns = []
+        for town in town_cdi[:8]:
+            grade = str(town.get("grade", "0"))
+            emoji = grade_map.get(grade, "⚫")
+            fw_grade = grade.translate(str.maketrans("01234567-+", "０１２３４５６７－＋"))
+            suspect_mark = " `⚠️`" if town.get("isSuspect") else ""
+            top_towns.append(f"`{emoji}` {fw_grade}級　{town.get('countyName', '')} {town.get('townName', '')}{suspect_mark}")
+        towns_value = "\n".join(top_towns) if top_towns else "目前無符合條件的回報資料"
+    else:
+        towns_value = "目前無回報資料"
+
+    # Embed 內容
+    report_url = f"https://www.twerg.org/dyfi?eq={current_no}"
+    message_content = f"📝 體感回報填寫（{current_no}）"
+    
+    embed = discord.Embed(title="顯著有感地震報告", description=report_url, color=0xff3846)
+    embed.add_field(name="編號", value=str(current_no), inline=True)
+    embed.add_field(name="規模", value=f"芮氏 {magnitude}", inline=True)
+    embed.add_field(name="深度", value=f"{focal_depth} 公里", inline=True)
+    embed.add_field(name="發生時間", value=discord_time, inline=False)
+    embed.add_field(name="📊 回報數量", value=f"{total_reports} 筆", inline=True)
+    embed.add_field(name="✅ 認可數量", value=f"{valid_reports} 筆", inline=True)
+    embed.add_field(name="🕓 體感回報統計時間", value=calibrated_discord_time, inline=False)
+    embed.add_field(name="體感回報內容 (最大8筆)", value=towns_value, inline=False)
+    embed.set_footer(text=f"地震資訊請以中央氣象署發佈為準")
+    
+    return message_content, embed
+
+class DyfiView(discord.ui.View):
+    def __init__(self, earthquakes, current_index, counts):
+        super().__init__(timeout=300)
+        self.earthquakes = earthquakes[:8]
+        self.current_index = current_index
+        self.counts = counts
+        self.selected_no = str(self.earthquakes[self.current_index].get('EarthquakeNo'))
+        self.update_components()
+
+    def update_components(self):
+        self.clear_items()
+        
+        # 1. 建立選單
+        options = []
+        for eq in self.earthquakes:
+            eq_no = eq.get('EarthquakeNo')
+            eq_info = eq.get('EarthquakeInfo', {})
+            mag = eq_info.get('EarthquakeMagnitude', {}).get('MagnitudeValue', '未知')
+            time_str = eq_info.get('OriginTime', '')
+            try:
+                short_time = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S").strftime("%m-%d %H:%M")
+            except ValueError:
+                short_time = time_str[:16]
+                
+            count = self.counts.get(eq_no, 0)
+            options.append(discord.SelectOption(
+                label=f"編號 {eq_no}",
+                description=f"規模 {mag} | {short_time} | 回報: {count}筆",
+                value=str(eq_no),
+                default=(str(eq_no) == self.selected_no)
+            ))
+            
+        select = discord.ui.Select(placeholder="選擇近期其他地震報告...", min_values=1, max_values=1, options=options, row=0)
+        async def select_callback(interaction: discord.Interaction):
+            self.selected_no = select.values[0]
+            idx = next((i for i, eq in enumerate(self.earthquakes) if str(eq.get('EarthquakeNo')) == self.selected_no), self.current_index)
+            await self.change_page(interaction, idx)
+        select.callback = select_callback
+        self.add_item(select)
+
+        # 2. 建立輔助切換按鈕 (⬅️ 上一筆 / ➡️ 下一筆 / 確認)
+        btn_prev = discord.ui.Button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=1, disabled=(self.current_index == 0))
+        async def btn_prev_callback(interaction: discord.Interaction):
+            await self.change_page(interaction, self.current_index - 1)
+        btn_prev.callback = btn_prev_callback
+        self.add_item(btn_prev)
+
+        btn_next = discord.ui.Button(emoji="➡️", style=discord.ButtonStyle.secondary, row=1, disabled=(self.current_index == len(self.earthquakes) - 1))
+        async def btn_next_callback(interaction: discord.Interaction):
+            await self.change_page(interaction, self.current_index + 1)
+        btn_next.callback = btn_next_callback
+        self.add_item(btn_next)
+
+        btn_confirm = discord.ui.Button(label="確認", style=discord.ButtonStyle.success, row=1)
+        async def btn_confirm_callback(interaction: discord.Interaction):
+            # 將除了網址按鈕以外的控制項全部設為禁用狀態 (灰色)
+            for child in self.children:
+                if getattr(child, "style", None) != discord.ButtonStyle.link:
+                    child.disabled = True
+            await interaction.response.edit_message(view=self)
+            self.stop()
+        btn_confirm.callback = btn_confirm_callback
+        self.add_item(btn_confirm)
+        
+        # 3. 建立網址按鈕
+        display_no = str(self.earthquakes[self.current_index].get('EarthquakeNo'))
+        btn_url = discord.ui.Button(label="體感回報網頁", url=f"https://www.twerg.org/dyfi?eq={display_no}", style=discord.ButtonStyle.link, row=2)
+        self.add_item(btn_url)
+
+    async def change_page(self, interaction: discord.Interaction, new_index: int):
+        await interaction.response.defer()
+        if 0 <= new_index < len(self.earthquakes):
+            self.current_index = new_index
+            selected_eq = self.earthquakes[self.current_index]
+            self.selected_no = str(selected_eq.get('EarthquakeNo'))
+            
+            content, embed = await generate_dyfi_message(selected_eq)
+            self.update_components()
+            await interaction.edit_original_response(content=content, embed=embed, view=self)
 
 class DyfiCog(commands.Cog):
     def __init__(self, bot):
@@ -14,7 +176,7 @@ class DyfiCog(commands.Cog):
             config = json.load(f)
         self.api_key = config['CWA_API_KEY']
 
-    @app_commands.command(name="dyfi", description="查詢最新一筆體感回報連結")
+    @app_commands.command(name="dyfi", description="查詢近期顯著有感地震的體感回報報告 (提供選單切換)")
     async def dyfi(self, interaction: discord.Interaction):
         # 避免 API 回應過慢導致超時報錯
         await interaction.response.defer()
@@ -42,39 +204,29 @@ class DyfiCog(commands.Cog):
                     if current_no is None:
                         await interaction.followup.send("⚠️ 找不到最新的地震編號資料。")
                         return
+                        
+                    # 同步獲取前 8 筆地震資料的體感回報數量
+                    async def fetch_count(eq_no):
+                        dyfi_url = f"https://www.twerg.org/api/dyfi-reports?eq_no={eq_no}"
+                        try:
+                            async with session.get(dyfi_url) as dyfi_res:
+                                if dyfi_res.status == 200:
+                                    dyfi_json = await dyfi_res.json()
+                                    return eq_no, dyfi_json.get("meta", {}).get("totalReports", 0)
+                        except Exception:
+                            pass
+                        return eq_no, 0
+                    
+                    tasks = [fetch_count(eq.get('EarthquakeNo')) for eq in earthquakes[:8]]
+                    results = await asyncio.gather(*tasks)
+                    counts = dict(results)
 
-                    # 解析進階資訊
-                    eq_info = latest_earthquake.get('EarthquakeInfo', {})
-                    origin_time_str = eq_info.get('OriginTime', '')
-                    magnitude = eq_info.get('EarthquakeMagnitude', {}).get('MagnitudeValue', '未知')
-                    focal_depth = eq_info.get('FocalDepth', '未知')
+                    # 產生預設最新一筆的 Embed 畫面
+                    content, embed = await generate_dyfi_message(latest_earthquake)
+                    # 產生包含近期 8 筆地震選單與切換按鈕的 View 控制項
+                    view = DyfiView(earthquakes, 0, counts)
                     
-                    # 轉換時間戳記
-                    try:
-                        tw_tz = timezone(timedelta(hours=8))
-                        dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
-                        dt = dt.replace(tzinfo=tw_tz)
-                        discord_time = f"<t:{int(dt.timestamp())}:F>"
-                    except ValueError:
-                        discord_time = origin_time_str
-
-                    # Embed 內容
-                    report_url = f"https://www.twerg.org/dyfi?eq={current_no}"
-                    message_content = f"📝 體感回報填寫（{current_no}）"
-                    
-                    embed = discord.Embed(title="顯著有感地震報告", description=report_url, color=0xff3846)
-                    embed.add_field(name="編號", value=str(current_no), inline=True)
-                    embed.add_field(name="規模", value=f"芮氏 {magnitude}", inline=True)
-                    embed.add_field(name="深度", value=f"{focal_depth} 公里", inline=True)
-                    embed.add_field(name="發生時間", value=discord_time, inline=False)
-
-                    embed.set_footer(text=f"僅供參考，實際資訊請以中央氣象署發佈為準")
-                    
-                    view = discord.ui.View()
-                    button = discord.ui.Button(label="體感回報網頁", url=report_url, style=discord.ButtonStyle.link)
-                    view.add_item(button)
-                    
-                    await interaction.followup.send(content=message_content, embed=embed, view=view)
+                    await interaction.followup.send(content=content, embed=embed, view=view)
 
         except Exception as e:
             await interaction.followup.send(f"❌ 發生未預期的錯誤：{e}")

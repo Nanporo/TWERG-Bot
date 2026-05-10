@@ -75,6 +75,10 @@ class MyBot(commands.Bot):
             # 載入 YouTube 直播監控 (/yt)
             await self.load_extension('cogs.yt')
             print("🔄 [模組] cogs.yt 載入完成")
+
+            # 載入地震體感回報推播 (地震發生後 30 分鐘自動發送)
+            await self.load_extension('cogs.dyfiReport')
+            print("🔄 [模組] cogs.dyfiReport 載入完成")
             
         except Exception as e:
             print(f"❌ 載入模組時發生錯誤: {e}")

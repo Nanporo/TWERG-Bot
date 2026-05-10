@@ -21,7 +21,7 @@ class EarthquakeCog(commands.Cog):
         self.check_earthquake.cancel()
 
     # 將 ctx 與 interaction 都作為可選參數傳入，方便回覆不同來源的觸發
-    async def fetch_and_send(self, force=False, target_guild_id=None, ctx: commands.Context = None, interaction: discord.Interaction = None):
+    async def fetch_and_send(self, force=False, target_guild_id=None, ctx: commands.Context = None, interaction: discord.Interaction = None, push_type: str = "report"):
         url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?Authorization={self.api_key}&format=JSON"
         
         # 定義一個輔助函數，用來處理回覆訊息，相容傳統與斜線指令
@@ -99,6 +99,24 @@ class EarthquakeCog(commands.Cog):
                     except ValueError:
                         mag_val = 0.0 # 若無法解析規模(如: 未知)，預設為0.0
                         
+                    # 若為強制推送體感回報，先檢查是否有資料
+                    if force and push_type == "dyfi":
+                        dyfi_url = f"https://www.twerg.org/api/dyfi-reports?eq_no={current_no}"
+                        has_data = False
+                        try:
+                            async with session.get(dyfi_url) as dyfi_res:
+                                if dyfi_res.status == 200:
+                                    dyfi_json = await dyfi_res.json()
+                                    if dyfi_json.get("meta", {}).get("totalReports", 0) > 0:
+                                        has_data = True
+                        except Exception:
+                            pass
+                            
+                        if not has_data:
+                            await reply_message("⚠️ 未推送，沒有體感回報資料")
+                            return
+
+                    pushed_channels = []
                     # 依據各伺服器設定決定是否發送與發送目標
                     for guild_id, settings in guild_settings.items():
                         # 若有指定目標伺服器，則跳過非目標的伺服器
@@ -125,17 +143,34 @@ class EarthquakeCog(commands.Cog):
                         for channel_id in channel_ids:
                             channel = self.bot.get_channel(channel_id)
                             if channel:
-                                try:
-                                    await channel.send(content=message_content, embed=embed, view=view)
-                                except discord.Forbidden:
-                                    print(f"❌ 無法發送至頻道 {channel_id}：權限不足。")
+                                if push_type == "report":
+                                    try:
+                                        await channel.send(content=message_content, embed=embed, view=view)
+                                        if channel not in pushed_channels:
+                                            pushed_channels.append(channel)
+                                    except discord.Forbidden:
+                                        print(f"❌ 無法發送至頻道 {channel_id}：權限不足。")
+                                elif push_type == "dyfi":
+                                    if channel not in pushed_channels:
+                                        pushed_channels.append(channel)
                             else:
                                 print(f"⚠️ 找不到頻道 {channel_id}。")
+                                
+                    if pushed_channels:
+                        if push_type == "report":
+                            self.bot.dispatch("earthquake_pushed", current_no, pushed_channels)
+                        elif push_type == "dyfi":
+                            self.bot.dispatch("force_dyfi_report", current_no, pushed_channels)
                             
                     # 推送成功後的回報
                     if force:
-                        await reply_message(f"✅ 已強制推送地震編號：`{current_no}`")
-                        print(f"🚨 管理員手動推送了地震報告：{current_no}")
+                        msg = f"✅ 已強制推送地震編號：`{current_no}`"
+                        if push_type == "dyfi":
+                            msg += " 的體感回報"
+                            print(f"🚨 管理員手動推送了地震 {current_no} 的體感回報")
+                        else:
+                            print(f"🚨 管理員手動推送了地震報告：{current_no}")
+                        await reply_message(msg)
                     else:
                         print(f"🚨 自動發現並發送新地震報告：{current_no}")
 
@@ -153,29 +188,44 @@ class EarthquakeCog(commands.Cog):
 
     # ================= 傳統文字指令 *push =================
     @commands.command(name="push")
-    async def traditional_push(self, ctx, scope: str = "global"):
+    async def traditional_push(self, ctx, arg1: str = "report", arg2: str = "global"):
         if not is_owner(ctx.author.id):
             return
         
+        push_type = "report"
+        scope = "global"
+        args = [arg1.lower(), arg2.lower()]
+        
+        if "dyfi" in args:
+            push_type = "dyfi"
+        if "local" in args:
+            scope = "local"
+            
         target_guild_id = None
-        if scope.lower() == "local":
+        if scope == "local":
             if not ctx.guild:
                 await ctx.send("❌ 「local (此伺服器)」選項只能在伺服器當中使用。")
                 return
             target_guild_id = ctx.guild.id
             
         temp_msg = await ctx.send("⏳ 正在抓取最新地震資料，請稍候...")
-        await self.fetch_and_send(force=True, target_guild_id=target_guild_id, ctx=ctx)
+        await self.fetch_and_send(force=True, target_guild_id=target_guild_id, ctx=ctx, push_type=push_type)
         await temp_msg.delete()
 
     # ================= 斜線指令 /push =================
     @app_commands.command(name="push", description="（限擁有者）強制推送最新的一筆地震報告")
-    @app_commands.describe(scope="推送範圍")
-    @app_commands.choices(scope=[
-        app_commands.Choice(name="此伺服器", value="local"),
-        app_commands.Choice(name="全域", value="global")
-    ])
-    async def slash_push(self, interaction: discord.Interaction, scope: app_commands.Choice[str]):
+    @app_commands.describe(scope="推送範圍", push_type="推送類型")
+    @app_commands.choices(
+        scope=[
+            app_commands.Choice(name="此伺服器", value="local"),
+            app_commands.Choice(name="全域", value="global")
+        ],
+        push_type=[
+            app_commands.Choice(name="地震報告", value="report"),
+            app_commands.Choice(name="體感回報", value="dyfi")
+        ]
+    )
+    async def slash_push(self, interaction: discord.Interaction, scope: app_commands.Choice[str], push_type: app_commands.Choice[str] = None):
         # 權限檢查
         if not is_owner(interaction.user.id):
             await interaction.response.send_message("❌ 你沒有權限使用此指令。", ephemeral=True)
@@ -188,9 +238,11 @@ class EarthquakeCog(commands.Cog):
                 return
             target_guild_id = interaction.guild_id
             
+        ptype = push_type.value if push_type else "report"
+            
         # 避免 API 超時，先顯示思考中 (僅限自己可見)
         await interaction.response.defer(ephemeral=True)
-        await self.fetch_and_send(force=True, target_guild_id=target_guild_id, interaction=interaction)
+        await self.fetch_and_send(force=True, target_guild_id=target_guild_id, interaction=interaction, push_type=ptype)
 
 async def setup(bot):
     await bot.add_cog(EarthquakeCog(bot))
