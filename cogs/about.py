@@ -5,7 +5,7 @@ from discord import app_commands
 class AboutCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.version = "1.0.3"
+        self.version = "1.0.4"
         self.ready_printed = False
 
     @commands.Cog.listener()
@@ -27,6 +27,11 @@ class AboutCog(commands.Cog):
         embed.add_field(
             name="",
             value="主要功能為自動推送體感回報網址，附帶一些簡潔功能。\n為了避免洗版，提示只會推播顯著有感地震的報告。\n如果您遇到任何問題，請聯絡機器人作者。",
+            inline=False
+        )
+        embed.add_field(
+            name="基於郭鎧紋前主任的原子彈計算公式",
+            value="> **E = 2^((M - 6.2) / 0.2)**\n`M` 地震的規模。\n`6.2` 基準規模，對應 1 顆原子彈的能量。\n`0.2` 每增加 0.2 的規模，能量乘以 2。\n`E` 對應的原子彈數量。",
             inline=False
         )
         embed.add_field(

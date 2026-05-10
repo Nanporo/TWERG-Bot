@@ -17,6 +17,7 @@ class HelpCog(commands.Cog):
         embed.add_field(name="/eewnow", value="🌐 查詢 地牛Wake Up! 的在線人數", inline=False)
         embed.add_field(name="/help", value="🛠️ 使用幫助", inline=False)
         embed.add_field(name="/invite", value="🔗 取得地牛記錄小組的 Discord 邀請網址", inline=False)
+        embed.add_field(name="/kkw", value="💥 計算地震規模相等於多少顆原子彈的能量", inline=False)
         embed.add_field(name="/yt", value="🖥️ 查詢 台灣地震監視 YouTube 直播觀看人數", inline=False)
         embed.add_field(name="/add", value="`(限管理員)` 將目前頻道加入自動推送列表", inline=False)
         embed.add_field(name="/remove", value="`(限管理員)` 將目前頻道從自動推送列表移除", inline=False)

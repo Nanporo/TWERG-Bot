@@ -64,8 +64,9 @@ async def generate_dyfi_message(eq_data):
             grade = str(town.get("grade", "0"))
             emoji = grade_map.get(grade, "⚫")
             fw_grade = grade.translate(str.maketrans("01234567-+", "０１２３４５６７－＋"))
+            grade_text = fw_grade if any(c in grade for c in ["弱", "強", "-", "+"]) else f"{fw_grade}級"
             suspect_mark = " `⚠️`" if town.get("isSuspect") else ""
-            top_towns.append(f"`{emoji}` {fw_grade}級　{town.get('countyName', '')} {town.get('townName', '')}{suspect_mark}")
+            top_towns.append(f"`{emoji}` {grade_text}　{town.get('countyName', '')} {town.get('townName', '')}{suspect_mark}")
         towns_value = "\n".join(top_towns) if top_towns else "目前無符合條件的回報資料"
     else:
         towns_value = "目前無回報資料"
