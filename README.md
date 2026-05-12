@@ -116,3 +116,5 @@ If you encounter any issues, please contact the BOT author.
 ## 授權 / License
 
 GNU Affero General Public License
+
+另外，本專案字體選用 HarmonyOS Sans，未有進行額外修改，遵循華為官方免費商用授權協議。
