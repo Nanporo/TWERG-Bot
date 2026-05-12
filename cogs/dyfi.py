@@ -81,7 +81,12 @@ def draw_dyfi_map_sync(town_cdi, eq_no="未知", mag="未知", depth="未知", t
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # 忽略地理坐標系計算中心點時的警告
-            for data in town_cdi:
+            
+            # 依照震度由小到大排序，確保大震度圓點能蓋在小震度圓點上方
+            grade_order = {"7": 10, "6強": 9, "6+": 9, "6弱": 8, "6-": 8, "5強": 7, "5+": 7, "5弱": 6, "5-": 6, "4": 5, "3": 4, "2": 3, "1": 2, "0": 1}
+            town_cdi_sorted = sorted(town_cdi, key=lambda x: (grade_order.get(str(x.get("grade", "0")), 0), x.get("cdi", 0.0)))
+            
+            for data in town_cdi_sorted:
                 c_name = data.get("countyName", "").replace("臺", "台").strip()
                 t_name = data.get("townName", "").replace("臺", "台").strip()
                 color = grade_colors.get(str(data.get("grade", "0")), "#F0F0F0")
