@@ -303,3 +303,6 @@ def render_map(eq_no, epicenter=None, eq_type='unknown', output_path=None):
 if __name__ == '__main__':
     out = render_map('115017')
     print(f'地圖已儲存：{out}')
+
+async def setup(bot):
+    pass

@@ -7,144 +7,9 @@ from datetime import datetime, timezone, timedelta
 import asyncio
 import io
 import os
+import time
 import logging
-
-def draw_dyfi_map_sync(town_cdi, eq_no="未知", mag="未知", depth="未知", total_reports=0, stats_time="無資料", eq_time="未知"):
-    """
-    同步函數：使用 geopandas 與 matplotlib 繪製體感回報地圖。
-    為確保執行緒安全，使用 Matplotlib 物件導向 API 繪製。
-    需要安裝：pip install geopandas matplotlib
-    """
-    # 關閉 matplotlib 字型尋找過程的警告，避免跨平台時找不到特定字型而導致終端機洗版
-    logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
-
-    try:
-        import matplotlib
-        matplotlib.use('Agg')
-        # 全域設定中文字型與關閉 unicode_minus，避免全形符號與負號渲染失敗或產生警告
-        matplotlib.rcParams['font.sans-serif'] = ['PingFang TC', 'Heiti TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'WenQuanYi Zen Hei', 'sans-serif']
-        matplotlib.rcParams['axes.unicode_minus'] = False
-        import geopandas as gpd
-        from matplotlib.figure import Figure
-        from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-        from matplotlib.lines import Line2D
-    except ImportError:
-        print("⚠️ [地圖產生器] 缺少 geopandas 或 matplotlib 套件，無法繪製地圖。請執行: pip install geopandas matplotlib")
-        return None
-
-    # 自動偵測可能的檔名，支援 TopoJSON 與 GeoJSON
-    possible_files = ["towns.topo.json", "tw_towns.topo.json", "tw_towns.geojson"]
-    map_path = next((f for f in possible_files if os.path.exists(f)), None)
-    
-    if not map_path:
-        print("⚠️ [地圖產生器] 找不到地圖檔案！")
-        print("👉 請從 https://github.com/dkaoster/taiwan-atlas 取得 towns.topo.json 放在機器人目錄。")
-        return None
-
-    try:
-        # 針對 TopoJSON 明確指定 layer 避免警告，並移除 driver 參數以避免底層 pyogrio 報錯
-        kwargs = {}
-        if "topo" in map_path.lower():
-            kwargs["layer"] = "towns"
-        gdf = gpd.read_file(map_path, **kwargs)
-    except Exception as e:
-        print(f"⚠️ [地圖產生器] 讀取 {map_path} 失敗: {e}")
-        return None
-
-    # 震度對應顏色 (參考標準配色)
-    grade_colors = {
-        "0": "#464f5c", "1": "#6bba6b", "2": "#00aaff", "3": "#0041ff",
-        "4": "#fae696", "5-": "#ffe600", "5弱": "#ffe600", "5+": "#ff9900",
-        "5強": "#ff9900", "6-": "#ff2800", "6弱": "#ff2800", "6+": "#a50021",
-        "6強": "#a50021", "7": "#b40068"
-    }
-
-    county_col = next((col for col in gdf.columns if col.upper() in ['COUNTY', 'COUNTYNAME', 'C_NAME', 'COUNTY_ID']), None)
-    town_col = next((col for col in gdf.columns if col.upper() in ['TOWN', 'TOWNNAME', 'T_NAME', 'TOWN_ID']), None)
-
-    fig = Figure(figsize=(6, 8), facecolor='#0f1113')
-    canvas = FigureCanvas(fig)
-    ax = fig.add_subplot(1, 1, 1, facecolor='#0f1113')
-    ax.set_axis_off()
-
-    # 1. 繪製陸地背景與鄉鎮邊界
-    gdf.plot(ax=ax, color='#1a1d20', edgecolor='#22262a', linewidth=0.3)
-
-    # 2. 融合圖層並繪製縣市邊界
-    if county_col:
-        counties = gdf.dissolve(by=county_col)
-        counties.boundary.plot(ax=ax, edgecolor='#4a5260', linewidth=0.8)
-
-    # 3. 繪製體感回報圓點
-    if county_col and town_col:
-        xs, ys, colors = [], [], []
-        
-        # 為了提升比對成功率，將地圖資料中的「臺」統一轉換為「台」並去除前後空白
-        match_county = gdf[county_col].fillna("").astype(str).str.replace('臺', '台').str.strip()
-        match_town = gdf[town_col].fillna("").astype(str).str.replace('臺', '台').str.strip()
-        
-        import warnings
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")  # 忽略地理坐標系計算中心點時的警告
-            
-            # 依照震度由小到大排序，確保大震度圓點能蓋在小震度圓點上方
-            grade_order = {"7": 10, "6強": 9, "6+": 9, "6弱": 8, "6-": 8, "5強": 7, "5+": 7, "5弱": 6, "5-": 6, "4": 5, "3": 4, "2": 3, "1": 2, "0": 1}
-            town_cdi_sorted = sorted(town_cdi, key=lambda x: (grade_order.get(str(x.get("grade", "0")), 0), x.get("cdi", 0.0)))
-            
-            for data in town_cdi_sorted:
-                c_name = data.get("countyName", "").replace("臺", "台").strip()
-                t_name = data.get("townName", "").replace("臺", "台").strip()
-                color = grade_colors.get(str(data.get("grade", "0")), "#F0F0F0")
-                mask = (match_county == c_name) & (match_town == t_name)
-                if mask.any():
-                    centroid = gdf[mask].geometry.centroid.iloc[0]
-                    xs.append(centroid.x)
-                    ys.append(centroid.y)
-                    colors.append(color)
-        if xs:
-            ax.scatter(xs, ys, c=colors, s=50, edgecolors='#1a1d20', linewidths=0.6, zorder=5)
-
-    # 4. 繪製圖例 (Legend)
-    legend_labels = [
-        ("0", "#464f5c"), ("1", "#6bba6b"), ("2", "#00aaff"), ("3", "#0041ff"),
-        ("4", "#fae696"), ("5－", "#ffe600"), ("5＋", "#ff9900"),
-        ("6－", "#ff2800"), ("6＋", "#a50021"), ("7", "#b40068")
-    ]
-    legend_elements = [
-        Line2D([0], [0], marker='o', color='w', label=lbl, markerfacecolor=c, 
-               markersize=7, markeredgecolor='#1a1d20', markeredgewidth=0.6, linestyle='None') 
-        for lbl, c in legend_labels
-    ]
-    ax.legend(handles=legend_elements, loc='lower right', facecolor='#1a1d20', edgecolor='#22262a', labelcolor='white', framealpha=0.9, fontsize=9, ncol=1)
-
-    # 5. 加入左上角地震資訊與免責文字標示
-    info_text = f"編號 {eq_no}\n規模 芮氏 {mag}\n深度 {depth} 公里\n發生時間 {eq_time}\n回報總數 {total_reports} 筆"
-    ax.text(0.04, 0.96, info_text, transform=ax.transAxes, 
-            color='white', alpha=0.75, fontsize=10, 
-            va='top', ha='left', 
-            fontfamily=['PingFang TC', 'Heiti TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'WenQuanYi Zen Hei', 'sans-serif']
-    )
-    
-    # 6. 加入左下角統計資訊
-    report_info_text = f"www.twerg.org\n體感回報由公眾自願提供，僅供參考\n回報統計時間 {stats_time}"
-    ax.text(0.04, 0.04, report_info_text, transform=ax.transAxes, 
-            color='white', alpha=0.75, fontsize=10, 
-            va='bottom', ha='left', 
-            fontfamily=['PingFang TC', 'Heiti TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'WenQuanYi Zen Hei', 'sans-serif']
-    )
-
-    # 調整地理坐標系視覺比例 (修復經緯度直接繪製導致的水平扁平感)
-    ax.set_aspect(1.1)
-
-    # 鎖定台灣本島與澎湖，過濾過遠外島讓地圖主題清晰
-    ax.set_xlim(119.3, 122.2)
-    ax.set_ylim(21.8, 25.4)
-
-    fig.tight_layout()
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=150, facecolor=fig.get_facecolor(), edgecolor='none')
-    buf.seek(0)
-    return buf
+from cogs.dyfi_map import render_map
 
 async def generate_dyfi_message(eq_data):
     """將指定的地震資料轉換為 Discord 訊息與 Embed 的輔助函數"""
@@ -153,6 +18,12 @@ async def generate_dyfi_message(eq_data):
     origin_time_str = eq_info.get('OriginTime', '')
     magnitude = eq_info.get('EarthquakeMagnitude', {}).get('MagnitudeValue', '未知')
     focal_depth = eq_info.get('FocalDepth', '未知')
+    
+    epicenter_data = eq_info.get('Epicenter', {})
+    epicenter = {
+        'lat': epicenter_data.get('EpicenterLatitude'),
+        'lon': epicenter_data.get('EpicenterLongitude')
+    }
     
     # 轉換時間戳記
     try:
@@ -200,10 +71,24 @@ async def generate_dyfi_message(eq_data):
         town_cdi = [town for town in town_cdi if str(town.get("anomalyWarning", 0)) != "1"]
         
         # 獨立在背景執行緒中產生圖片，避免阻塞 Discord 機器人
-        loop = asyncio.get_running_loop()
-        map_buf = await loop.run_in_executor(None, draw_dyfi_map_sync, town_cdi, current_no, magnitude, focal_depth, total_reports, map_stats_time, origin_time_str)
+        os.makedirs('temp', exist_ok=True)
+        output_path = f"temp/map_{current_no}_{int(time.time())}.png"
+        eq_type = 'significant' if str(current_no).isdigit() else 'small'
         
-        if map_buf:
+        loop = asyncio.get_running_loop()
+        def run_render():
+            try:
+                return render_map(eq_no=current_no, epicenter=epicenter, eq_type=eq_type, output_path=output_path)
+            except Exception as e:
+                print(f"⚠️ 繪製地圖失敗: {e}")
+                return None
+                
+        img_path = await loop.run_in_executor(None, run_render)
+        
+        if img_path and os.path.exists(img_path):
+            with open(img_path, 'rb') as f:
+                map_buf = io.BytesIO(f.read())
+            os.remove(img_path)
             map_file = discord.File(fp=map_buf, filename="dyfi_map.png")
 
         # 依據 grade 權重與精準的體感震度 cdi 值由大到小排序，並取出前 8 筆

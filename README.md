@@ -110,7 +110,7 @@ If you encounter any issues, please contact the BOT author.
 
 ## 特別感謝 / Special Thanks
 
-- `yoworingo` 提供TWERG 體感回報方面的建議
+- `yoworingo` 提供 TWERG 體感回報地圖相關組件
 - `easontet` 提供計算公式
 
 ## 授權 / License

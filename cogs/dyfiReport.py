@@ -5,12 +5,14 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 import json
 import io
+import os
+import time
 
 # 嘗試載入地圖產生器，若失敗則設為 None
 try:
-    from cogs.dyfi import draw_dyfi_map_sync
+    from cogs.dyfi_map import render_map
 except ImportError:
-    draw_dyfi_map_sync = None
+    render_map = None
 
 class DyfiReportCog(commands.Cog):
     def __init__(self, bot):
@@ -19,7 +21,7 @@ class DyfiReportCog(commands.Cog):
         self.scheduled_eqs = set()
 
     @commands.Cog.listener()
-    async def on_earthquake_pushed(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知"):
+    async def on_earthquake_pushed(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知", epicenter: dict = None):
         # 檢查是否已經在倒數中
         if eq_no in self.scheduled_eqs:
             print(f"⚠️ 地震 {eq_no} 的 TWERG 體感回報已在排程中，略過重複觸發。")
@@ -29,14 +31,14 @@ class DyfiReportCog(commands.Cog):
         print(f"⏳ 已排程地震 {eq_no} 的 TWERG 體感回報，將在 30 分鐘後發送...")
         
         # 將等待與發送的工作建立為背景任務，不阻塞目前的事件處理
-        self.bot.loop.create_task(self.send_dyfi_report(eq_no, channels, magnitude, depth, origin_time, delay=1800))
+        self.bot.loop.create_task(self.send_dyfi_report(eq_no, channels, magnitude, depth, origin_time, delay=1800, epicenter=epicenter))
 
     @commands.Cog.listener()
-    async def on_force_dyfi_report(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知"):
+    async def on_force_dyfi_report(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知", epicenter: dict = None):
         print(f"🚨 管理員強制推送了地震 {eq_no} 的 TWERG 體感回報！")
-        self.bot.loop.create_task(self.send_dyfi_report(eq_no, channels, magnitude, depth, origin_time, delay=0))
+        self.bot.loop.create_task(self.send_dyfi_report(eq_no, channels, magnitude, depth, origin_time, delay=0, epicenter=epicenter))
 
-    async def send_dyfi_report(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知", delay: int = 1800):
+    async def send_dyfi_report(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知", delay: int = 1800, epicenter: dict = None):
         if delay > 0:
             await asyncio.sleep(delay)
             self.scheduled_eqs.discard(eq_no) # 倒數結束，從清單移除
@@ -86,7 +88,7 @@ class DyfiReportCog(commands.Cog):
                     embed.add_field(name="🕓 回報統計時間", value=calibrated_discord_time, inline=False)
                     
                     town_cdi = data.get("townCDI", [])
-                    map_buf = None
+                    map_bytes = None
                     if town_cdi:
                         # 過濾異常警告的資料
                         town_cdi = [town for town in town_cdi if str(town.get("anomalyWarning", 0)) != "1"]
@@ -99,10 +101,24 @@ class DyfiReportCog(commands.Cog):
                             
                         any_wants_map = any(guild_settings.get(str(c.guild.id), {}).get("render_map", False) for c in channels)
                         
-                        if draw_dyfi_map_sync and any_wants_map:
-                            # 在背景獨立運算，避免阻塞 Discord 迴圈
+                        if render_map and any_wants_map:
+                            os.makedirs('temp', exist_ok=True)
+                            output_path = f"temp/map_{eq_no}_{int(time.time())}.png"
+                            eq_type = 'significant' if str(eq_no).isdigit() else 'small'
+                            
                             loop = asyncio.get_running_loop()
-                            map_buf = await loop.run_in_executor(None, draw_dyfi_map_sync, town_cdi, eq_no, magnitude, depth, total_reports, map_stats_time, origin_time)
+                            def run_render():
+                                try:
+                                    return render_map(eq_no=eq_no, epicenter=epicenter, eq_type=eq_type, output_path=output_path)
+                                except Exception as e:
+                                    print(f"⚠️ 繪製地圖失敗: {e}")
+                                    return None
+                                    
+                            img_path = await loop.run_in_executor(None, run_render)
+                            if img_path and os.path.exists(img_path):
+                                with open(img_path, 'rb') as f:
+                                    map_bytes = f.read()
+                                os.remove(img_path)
 
                         # 依照 grade 權重與體感震度 (cdi) 由大到小重新排序
                         grade_order = {"7": 10, "6強": 9, "6+": 9, "6弱": 8, "6-": 8, "5強": 7, "5+": 7, "5弱": 6, "5-": 6, "4": 5, "3": 4, "2": 3, "1": 2, "0": 1}
@@ -140,9 +156,6 @@ class DyfiReportCog(commands.Cog):
 
                     btn_recent_reports = discord.ui.Button(label="最近地震報告", url="https://www.twerg.org/reports", style=discord.ButtonStyle.link, row=0)
                     view.add_item(btn_recent_reports)
-                    
-                    # 先將緩衝區的圖片提取為純位元組 (bytes)，避免被第一個頻道傳送後自動關閉檔案
-                    map_bytes = map_buf.getvalue() if map_buf else None
                     
                     for channel in channels:
                         try:

@@ -66,6 +66,12 @@ class EarthquakeCog(commands.Cog):
                     magnitude = eq_info.get('EarthquakeMagnitude', {}).get('MagnitudeValue', '未知')
                     focal_depth = eq_info.get('FocalDepth', '未知')
                     
+                    epicenter_data = eq_info.get('Epicenter', {})
+                    epicenter = {
+                        'lat': epicenter_data.get('EpicenterLatitude'),
+                        'lon': epicenter_data.get('EpicenterLongitude')
+                    }
+                    
                     try:
                         tw_tz = timezone(timedelta(hours=8))
                         dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
@@ -165,9 +171,9 @@ class EarthquakeCog(commands.Cog):
                     if pushed_channels:
                         if push_type == "report":
                             if dyfi_scheduled_channels:
-                                self.bot.dispatch("earthquake_pushed", current_no, dyfi_scheduled_channels, str(magnitude), str(focal_depth), origin_time_str)
+                                self.bot.dispatch("earthquake_pushed", current_no, dyfi_scheduled_channels, str(magnitude), str(focal_depth), origin_time_str, epicenter)
                         elif push_type == "dyfi":
-                            self.bot.dispatch("force_dyfi_report", current_no, pushed_channels, str(magnitude), str(focal_depth), origin_time_str)
+                            self.bot.dispatch("force_dyfi_report", current_no, pushed_channels, str(magnitude), str(focal_depth), origin_time_str, epicenter)
                             
                     # 推送成功後的回報
                     if force:
