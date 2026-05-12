@@ -3,6 +3,7 @@ from discord.ext import commands
 import json
 import sys
 import os
+import aiohttp
 from datetime import timezone, timedelta
 
 # ================= 讀取設定檔 =================
@@ -34,19 +35,20 @@ class MyBot(commands.Bot):
         
         # 將傳統指令前綴設定為 *
         super().__init__(command_prefix='*', intents=intents)
+        self.session = None
 
     async def setup_hook(self):       
+        self.session = aiohttp.ClientSession()
         # ================= 載入所有模組 (Cogs) =================
-        try:
-            # 自動載入 cogs/ 資料夾下的所有 .py 檔案
-            for filename in os.listdir('./cogs'):
-                if filename.endswith('.py'):
-                    extension_name = f'cogs.{filename[:-3]}'
+        # 自動載入 cogs/ 資料夾下的所有 .py 檔案
+        for filename in os.listdir('./cogs'):
+            if filename.endswith('.py') and not filename.startswith(('_', '.')):
+                extension_name = f'cogs.{filename[:-3]}'
+                try:
                     await self.load_extension(extension_name)
                     print(f"🔄 [模組] {extension_name} 載入完成")
-            
-        except Exception as e:
-            print(f"❌ 載入模組時發生錯誤: {e}")
+                except Exception as e:
+                    print(f"❌ 載入模組 {extension_name} 時發生錯誤: {e}")
         # ========================================================
 
         # ================= 同步斜線指令 =================
@@ -81,6 +83,11 @@ class MyBot(commands.Bot):
         print(f'✅ 機器人已成功登入為: {self.user.name} (ID: {self.user.id})')
         print(f'✅ 目前時間: {discord.utils.utcnow().astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")}')
         print('====================================')
+
+    async def close(self):
+        if self.session:
+            await self.session.close()
+        await super().close()
 
 # 原神，啟動！
 bot = MyBot()

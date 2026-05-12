@@ -160,10 +160,10 @@ class DyfiReportCog(commands.Cog):
                     for channel in channels:
                         try:
                             guild_id_str = str(channel.guild.id)
-                            render_map = guild_settings.get(guild_id_str, {}).get("render_map", True)
+                            should_render_map = guild_settings.get(guild_id_str, {}).get("render_map", True)
                             channel_embed = embed.copy()
                             
-                            if map_bytes and render_map:
+                            if map_bytes and should_render_map:
                                 # 為每個頻道獨立建立 BytesIO 物件
                                 map_file = discord.File(fp=io.BytesIO(map_bytes), filename="dyfi_map.png")
                                 channel_embed.set_image(url="attachment://dyfi_map.png")

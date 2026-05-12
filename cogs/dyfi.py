@@ -11,7 +11,7 @@ import time
 import logging
 from cogs.dyfi_map import render_map
 
-async def generate_dyfi_message(eq_data):
+async def generate_dyfi_message(bot, eq_data):
     """將指定的地震資料轉換為 Discord 訊息與 Embed 的輔助函數"""
     current_no = eq_data.get('EarthquakeNo')
     eq_info = eq_data.get('EarthquakeInfo', {})
@@ -37,12 +37,11 @@ async def generate_dyfi_message(eq_data):
     # 獨立抓取體感回報資料
     dyfi_url = f"https://www.twerg.org/api/dyfi-reports?eq_no={current_no}"
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(dyfi_url) as dyfi_response:
-                if dyfi_response.status == 200:
-                    dyfi_data = await dyfi_response.json()
-                else:
-                    dyfi_data = {}
+        async with bot.session.get(dyfi_url) as dyfi_response:
+            if dyfi_response.status == 200:
+                dyfi_data = await dyfi_response.json()
+            else:
+                dyfi_data = {}
     except Exception:
         dyfi_data = {}
 
@@ -139,8 +138,9 @@ async def generate_dyfi_message(eq_data):
     return message_content, embed, map_file
 
 class DyfiView(discord.ui.View):
-    def __init__(self, earthquakes, current_index, counts):
+    def __init__(self, bot, earthquakes, current_index, counts):
         super().__init__(timeout=300)
+        self.bot = bot
         self.earthquakes = earthquakes[:8]
         self.current_index = current_index
         self.counts = counts
@@ -191,7 +191,7 @@ class DyfiView(discord.ui.View):
             selected_eq = self.earthquakes[self.current_index]
             self.selected_no = str(selected_eq.get('EarthquakeNo'))
             
-            content, embed, map_file = await generate_dyfi_message(selected_eq)
+            content, embed, map_file = await generate_dyfi_message(self.bot, selected_eq)
             self.update_components()
             
             kwargs = {'content': content, 'embed': embed, 'view': self}
@@ -218,52 +218,51 @@ class DyfiCog(commands.Cog):
         url = f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?Authorization={self.api_key}&format=JSON"
         
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
-                    if response.status != 200:
-                        await interaction.followup.send(f"⚠️ API 請求失敗，狀態碼：{response.status}")
-                        return
+            async with self.bot.session.get(url) as response:
+                if response.status != 200:
+                    await interaction.followup.send(f"⚠️ API 請求失敗，狀態碼：{response.status}")
+                    return
 
-                    data = await response.json()
-                    earthquakes = data.get('records', {}).get('Earthquake', [])
-                    
-                    if not earthquakes:
-                        await interaction.followup.send("⚠️ 目前找不到任何地震資料。")
-                        return
+                data = await response.json()
+                earthquakes = data.get('records', {}).get('Earthquake', [])
+                
+                if not earthquakes:
+                    await interaction.followup.send("⚠️ 目前找不到任何地震資料。")
+                    return
 
-                    # 取最新的一筆資料
-                    latest_earthquake = earthquakes[0]
-                    current_no = latest_earthquake.get('EarthquakeNo')
+                # 取最新的一筆資料
+                latest_earthquake = earthquakes[0]
+                current_no = latest_earthquake.get('EarthquakeNo')
+                
+                if current_no is None:
+                    await interaction.followup.send("⚠️ 找不到最新的地震編號資料。")
+                    return
                     
-                    if current_no is None:
-                        await interaction.followup.send("⚠️ 找不到最新的地震編號資料。")
-                        return
-                        
-                    # 同步獲取前 8 筆地震資料的體感回報數量
-                    async def fetch_count(eq_no):
-                        dyfi_url = f"https://www.twerg.org/api/dyfi-reports?eq_no={eq_no}"
-                        try:
-                            async with session.get(dyfi_url) as dyfi_res:
-                                if dyfi_res.status == 200:
-                                    dyfi_json = await dyfi_res.json()
-                                    return eq_no, dyfi_json.get("meta", {}).get("totalReports", 0)
-                        except Exception:
-                            pass
-                        return eq_no, 0
-                    
-                    tasks = [fetch_count(eq.get('EarthquakeNo')) for eq in earthquakes[:8]]
-                    results = await asyncio.gather(*tasks)
-                    counts = dict(results)
+                # 同步獲取前 8 筆地震資料的體感回報數量
+                async def fetch_count(eq_no):
+                    dyfi_url = f"https://www.twerg.org/api/dyfi-reports?eq_no={eq_no}"
+                    try:
+                        async with self.bot.session.get(dyfi_url) as dyfi_res:
+                            if dyfi_res.status == 200:
+                                dyfi_json = await dyfi_res.json()
+                                return eq_no, dyfi_json.get("meta", {}).get("totalReports", 0)
+                    except Exception:
+                        pass
+                    return eq_no, 0
+                
+                tasks = [fetch_count(eq.get('EarthquakeNo')) for eq in earthquakes[:8]]
+                results = await asyncio.gather(*tasks)
+                counts = dict(results)
 
-                    # 產生預設最新一筆的 Embed 畫面
-                    content, embed, map_file = await generate_dyfi_message(latest_earthquake)
-                    # 產生包含近期 8 筆地震選單與切換按鈕的 View 控制項
-                    view = DyfiView(earthquakes, 0, counts)
-                    
-                    if map_file:
-                        await interaction.followup.send(content=content, embed=embed, view=view, file=map_file)
-                    else:
-                        await interaction.followup.send(content=content, embed=embed, view=view)
+                # 產生預設最新一筆的 Embed 畫面
+                content, embed, map_file = await generate_dyfi_message(self.bot, latest_earthquake)
+                # 產生包含近期 8 筆地震選單與切換按鈕的 View 控制項
+                view = DyfiView(self.bot, earthquakes, 0, counts)
+                
+                if map_file:
+                    await interaction.followup.send(content=content, embed=embed, view=view, file=map_file)
+                else:
+                    await interaction.followup.send(content=content, embed=embed, view=view)
 
         except Exception as e:
             await interaction.followup.send(f"❌ 發生未預期的錯誤：{e}")

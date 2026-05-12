@@ -37,36 +37,35 @@ class YTCog(commands.Cog):
             "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7"
         }
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(self.video_url, headers=headers) as response:
-                    if response.status != 200:
-                        return None
-                    html = await response.text()
-                    
-                    # 1. 嘗試依據提供的 HTML 標籤結構尋找 (例如 <span>659</span><span> 人正在觀看</span>)
-                    match = re.search(r'>([\d,]+)</span><span[^>]*>\s*人正在觀看', html)
-                    if match:
-                        return int(match.group(1).replace(',', ''))
-
-                    # 2. 嘗試從 YouTube 內嵌的 JSON 資料中尋找 (aiohttp 取得的原始碼通常為 JSON 結構)
-                    match = re.search(r'"text":"([\d,]+)"\}\s*,\s*\{"text":"\s*人正在觀看"', html)
-                    if match:
-                        return int(match.group(1).replace(',', ''))
-                        
-                    match = re.search(r'"viewCountText":\{"simpleText":"([\d,]+)\s*人正在觀看"', html)
-                    if match:
-                        return int(match.group(1).replace(',', ''))
-
-                    # 3. 嘗試原有的 concurrentViewers 或是 viewCount 數據
-                    match = re.search(r'"concurrentViewers":"(\d+)"', html)
-                    if match:
-                        return int(match.group(1))
-                        
-                    match = re.search(r'"viewCount":"(\d+)"', html)
-                    if match:
-                        return int(match.group(1))
-                        
+            async with self.bot.session.get(self.video_url, headers=headers) as response:
+                if response.status != 200:
                     return None
+                html = await response.text()
+                
+                # 1. 嘗試依據提供的 HTML 標籤結構尋找 (例如 <span>659</span><span> 人正在觀看</span>)
+                match = re.search(r'>([\d,]+)</span><span[^>]*>\s*人正在觀看', html)
+                if match:
+                    return int(match.group(1).replace(',', ''))
+
+                # 2. 嘗試從 YouTube 內嵌的 JSON 資料中尋找 (aiohttp 取得的原始碼通常為 JSON 結構)
+                match = re.search(r'"text":"([\d,]+)"\}\s*,\s*\{"text":"\s*人正在觀看"', html)
+                if match:
+                    return int(match.group(1).replace(',', ''))
+                    
+                match = re.search(r'"viewCountText":\{"simpleText":"([\d,]+)\s*人正在觀看"', html)
+                if match:
+                    return int(match.group(1).replace(',', ''))
+
+                # 3. 嘗試原有的 concurrentViewers 或是 viewCount 數據
+                match = re.search(r'"concurrentViewers":"(\d+)"', html)
+                if match:
+                    return int(match.group(1))
+                    
+                match = re.search(r'"viewCount":"(\d+)"', html)
+                if match:
+                    return int(match.group(1))
+                    
+                return None
         except Exception as e:
             print(f"❌ 獲取 YouTube 觀看人數失敗：{e}")
             return None

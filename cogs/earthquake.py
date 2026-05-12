@@ -32,160 +32,159 @@ class EarthquakeCog(commands.Cog):
                 await interaction.followup.send(content, ephemeral=True) # 斜線指令回覆設為僅自己可見
 
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
-                    if response.status != 200:
-                        await reply_message(f"⚠️ API 請求失敗，狀態碼：{response.status}")
-                        return
+            async with self.bot.session.get(url) as response:
+                if response.status != 200:
+                    await reply_message(f"⚠️ API 請求失敗，狀態碼：{response.status}")
+                    return
 
-                    data = await response.json()
-                    earthquakes = data.get('records', {}).get('Earthquake', [])
-                    
-                    if not earthquakes:
-                        await reply_message("⚠️ 目前找不到任何地震資料。")
-                        return
+                data = await response.json()
+                earthquakes = data.get('records', {}).get('Earthquake', [])
+                
+                if not earthquakes:
+                    await reply_message("⚠️ 目前找不到任何地震資料。")
+                    return
 
-                    latest_earthquake = earthquakes[0]
-                    current_no = latest_earthquake.get('EarthquakeNo')
-                    
-                    if current_no is None:
-                        return
+                latest_earthquake = earthquakes[0]
+                current_no = latest_earthquake.get('EarthquakeNo')
+                
+                if current_no is None:
+                    return
 
-                    if not force:
-                        if self.last_earthquake_no is None:
-                            self.last_earthquake_no = current_no
-                            print(f"🔄 初始載入完成，目前最新的地震編號為：{self.last_earthquake_no}")
-                            return
-                        if current_no == self.last_earthquake_no:
-                            return
+                if not force:
+                    if self.last_earthquake_no is None:
+                        self.last_earthquake_no = current_no
+                        print(f"🔄 初始載入完成，目前最新的地震編號為：{self.last_earthquake_no}")
+                        return
+                    if current_no == self.last_earthquake_no:
+                        return
+                
+                self.last_earthquake_no = current_no
+                
+                eq_info = latest_earthquake.get('EarthquakeInfo', {})
+                origin_time_str = eq_info.get('OriginTime', '')
+                magnitude = eq_info.get('EarthquakeMagnitude', {}).get('MagnitudeValue', '未知')
+                focal_depth = eq_info.get('FocalDepth', '未知')
+                
+                epicenter_data = eq_info.get('Epicenter', {})
+                epicenter = {
+                    'lat': epicenter_data.get('EpicenterLatitude'),
+                    'lon': epicenter_data.get('EpicenterLongitude')
+                }
+                
+                try:
+                    tw_tz = timezone(timedelta(hours=8))
+                    dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
+                    dt = dt.replace(tzinfo=tw_tz)
+                    discord_time = f"<t:{int(dt.timestamp())}:f>"
+                except ValueError:
+                    discord_time = origin_time_str
+
+                report_url = f"https://www.twerg.org/dyfi?eq={current_no}"
+                message_content = f"# 📃 體感回報填寫（{current_no}）"
+                
+                embed = discord.Embed(title="顯著有感地震報告", description=report_url, color=0xff3846)
+                embed.add_field(name="編號", value=str(current_no), inline=True)
+                embed.add_field(name="規模", value=f"芮氏 {magnitude}", inline=True)
+                embed.add_field(name="深度", value=f"{focal_depth} 公里", inline=True)
+                embed.add_field(name="發生時間", value=discord_time, inline=False)
+                
+                view = discord.ui.View()
+                button = discord.ui.Button(label="TWERG 體感回報網頁", url=report_url, style=discord.ButtonStyle.link)
+                view.add_item(button)
+                
+                # 讀取各伺服器的獨立設定
+                try:
+                    with open('guild_settings.json', 'r', encoding='utf-8') as f:
+                        guild_settings = json.load(f)
+                except Exception:
+                    guild_settings = {}
                     
-                    self.last_earthquake_no = current_no
+                try:
+                    mag_val = float(magnitude)
+                except ValueError:
+                    mag_val = 0.0 # 若無法解析規模(如: 未知)，預設為0.0
                     
-                    eq_info = latest_earthquake.get('EarthquakeInfo', {})
-                    origin_time_str = eq_info.get('OriginTime', '')
-                    magnitude = eq_info.get('EarthquakeMagnitude', {}).get('MagnitudeValue', '未知')
-                    focal_depth = eq_info.get('FocalDepth', '未知')
-                    
-                    epicenter_data = eq_info.get('Epicenter', {})
-                    epicenter = {
-                        'lat': epicenter_data.get('EpicenterLatitude'),
-                        'lon': epicenter_data.get('EpicenterLongitude')
-                    }
-                    
+                # 若為強制推送 TWERG 體感回報，先檢查是否有資料
+                if force and push_type == "dyfi":
+                    dyfi_url = f"https://www.twerg.org/api/dyfi-reports?eq_no={current_no}"
+                    has_data = False
                     try:
-                        tw_tz = timezone(timedelta(hours=8))
-                        dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
-                        dt = dt.replace(tzinfo=tw_tz)
-                        discord_time = f"<t:{int(dt.timestamp())}:f>"
-                    except ValueError:
-                        discord_time = origin_time_str
-
-                    report_url = f"https://www.twerg.org/dyfi?eq={current_no}"
-                    message_content = f"# 📃 體感回報填寫（{current_no}）"
-                    
-                    embed = discord.Embed(title="顯著有感地震報告", description=report_url, color=0xff3846)
-                    embed.add_field(name="編號", value=str(current_no), inline=True)
-                    embed.add_field(name="規模", value=f"芮氏 {magnitude}", inline=True)
-                    embed.add_field(name="深度", value=f"{focal_depth} 公里", inline=True)
-                    embed.add_field(name="發生時間", value=discord_time, inline=False)
-                    
-                    view = discord.ui.View()
-                    button = discord.ui.Button(label="TWERG 體感回報網頁", url=report_url, style=discord.ButtonStyle.link)
-                    view.add_item(button)
-                    
-                    # 讀取各伺服器的獨立設定
-                    try:
-                        with open('guild_settings.json', 'r', encoding='utf-8') as f:
-                            guild_settings = json.load(f)
+                        async with self.bot.session.get(dyfi_url) as dyfi_res:
+                            if dyfi_res.status == 200:
+                                dyfi_json = await dyfi_res.json()
+                                if dyfi_json.get("meta", {}).get("totalReports", 0) > 0:
+                                    has_data = True
                     except Exception:
-                        guild_settings = {}
+                        pass
                         
-                    try:
-                        mag_val = float(magnitude)
-                    except ValueError:
-                        mag_val = 0.0 # 若無法解析規模(如: 未知)，預設為0.0
-                        
-                    # 若為強制推送 TWERG 體感回報，先檢查是否有資料
-                    if force and push_type == "dyfi":
-                        dyfi_url = f"https://www.twerg.org/api/dyfi-reports?eq_no={current_no}"
-                        has_data = False
-                        try:
-                            async with session.get(dyfi_url) as dyfi_res:
-                                if dyfi_res.status == 200:
-                                    dyfi_json = await dyfi_res.json()
-                                    if dyfi_json.get("meta", {}).get("totalReports", 0) > 0:
-                                        has_data = True
-                        except Exception:
-                            pass
-                            
-                        if not has_data:
-                            await reply_message("⚠️ 未推送，沒有 TWERG 體感回報資料")
-                            return
+                    if not has_data:
+                        await reply_message("⚠️ 未推送，沒有 TWERG 體感回報資料")
+                        return
 
-                    pushed_channels = []
-                    dyfi_scheduled_channels = []
-                    # 依據各伺服器設定決定是否發送與發送目標
-                    for guild_id, settings in guild_settings.items():
-                        # 若有指定目標伺服器，則跳過非目標的伺服器
-                        if target_guild_id and str(guild_id) != str(target_guild_id):
-                            continue
-                            
-                        # 若未開啟自動推送，則跳過
-                        if not settings.get("auto_push"):
-                            continue
-                            
-                        # 檢查規模是否達標
-                        if mag_val < settings.get("min_magnitude", 4.0):
-                            continue
-                            
-                        # 是否發送30分鐘後初步統計 (預設開啟)
-                        auto_dyfi = settings.get("auto_dyfi_report", True)
-                            
-                        # 兼容新舊版設定，使用 target_channel_ids
-                        channel_ids = settings.get("target_channel_ids", [])
-                        legacy_id = settings.get("target_channel_id")
-                        if legacy_id and legacy_id not in channel_ids:
-                            channel_ids.append(legacy_id)
-                            
-                        if not channel_ids:
-                            continue
-                            
-                        for channel_id in channel_ids:
-                            channel = self.bot.get_channel(channel_id)
-                            if channel:
-                                if push_type == "report":
-                                    try:
-                                        await channel.send(content=message_content, embed=embed, view=view)
-                                        if channel not in pushed_channels:
-                                            pushed_channels.append(channel)
-                                        if auto_dyfi and channel not in dyfi_scheduled_channels:
-                                            dyfi_scheduled_channels.append(channel)
-                                    except discord.Forbidden:
-                                        print(f"❌ 無法發送至頻道 {channel_id}：權限不足。")
-                                elif push_type == "dyfi":
+                pushed_channels = []
+                dyfi_scheduled_channels = []
+                # 依據各伺服器設定決定是否發送與發送目標
+                for guild_id, settings in guild_settings.items():
+                    # 若有指定目標伺服器，則跳過非目標的伺服器
+                    if target_guild_id and str(guild_id) != str(target_guild_id):
+                        continue
+                        
+                    # 若未開啟自動推送，則跳過
+                    if not settings.get("auto_push"):
+                        continue
+                        
+                    # 檢查規模是否達標
+                    if mag_val < settings.get("min_magnitude", 4.0):
+                        continue
+                        
+                    # 是否發送30分鐘後初步統計 (預設開啟)
+                    auto_dyfi = settings.get("auto_dyfi_report", True)
+                        
+                    # 兼容新舊版設定，使用 target_channel_ids
+                    channel_ids = settings.get("target_channel_ids", [])
+                    legacy_id = settings.get("target_channel_id")
+                    if legacy_id and legacy_id not in channel_ids:
+                        channel_ids.append(legacy_id)
+                        
+                    if not channel_ids:
+                        continue
+                        
+                    for channel_id in channel_ids:
+                        channel = self.bot.get_channel(channel_id)
+                        if channel:
+                            if push_type == "report":
+                                try:
+                                    await channel.send(content=message_content, embed=embed, view=view)
                                     if channel not in pushed_channels:
                                         pushed_channels.append(channel)
-                            else:
-                                print(f"⚠️ 找不到頻道 {channel_id}。")
-                                
-                    if pushed_channels:
-                        if push_type == "report":
-                            if dyfi_scheduled_channels:
-                                self.bot.dispatch("earthquake_pushed", current_no, dyfi_scheduled_channels, str(magnitude), str(focal_depth), origin_time_str, epicenter)
-                        elif push_type == "dyfi":
-                            self.bot.dispatch("force_dyfi_report", current_no, pushed_channels, str(magnitude), str(focal_depth), origin_time_str, epicenter)
-                            
-                    # 推送成功後的回報
-                    if force:
-                        msg = f"✅ 已強制推送地震編號：`{current_no}`"
-                        if push_type == "dyfi":
-                            msg += " 的 TWERG 體感回報"
-                            print(f"🚨 管理員手動推送了地震 {current_no} 的 TWERG 體感回報")
+                                    if auto_dyfi and channel not in dyfi_scheduled_channels:
+                                        dyfi_scheduled_channels.append(channel)
+                                except discord.Forbidden:
+                                    print(f"❌ 無法發送至頻道 {channel_id}：權限不足。")
+                            elif push_type == "dyfi":
+                                if channel not in pushed_channels:
+                                    pushed_channels.append(channel)
                         else:
-                            print(f"🚨 管理員手動推送了地震報告：{current_no}")
-                        await reply_message(msg)
+                            print(f"⚠️ 找不到頻道 {channel_id}。")
+                            
+                if pushed_channels:
+                    if push_type == "report":
+                        if dyfi_scheduled_channels:
+                            self.bot.dispatch("earthquake_pushed", current_no, dyfi_scheduled_channels, str(magnitude), str(focal_depth), origin_time_str, epicenter)
+                    elif push_type == "dyfi":
+                        self.bot.dispatch("force_dyfi_report", current_no, pushed_channels, str(magnitude), str(focal_depth), origin_time_str, epicenter)
+                        
+                # 推送成功後的回報
+                if force:
+                    msg = f"✅ 已強制推送地震編號：`{current_no}`"
+                    if push_type == "dyfi":
+                        msg += " 的 TWERG 體感回報"
+                        print(f"🚨 管理員手動推送了地震 {current_no} 的 TWERG 體感回報")
                     else:
-                        print(f"🚨 自動發現並發送新地震報告：{current_no}")
+                        print(f"🚨 管理員手動推送了地震報告：{current_no}")
+                    await reply_message(msg)
+                else:
+                    print(f"🚨 自動發現並發送新地震報告：{current_no}")
 
         except Exception as e:
             await reply_message(f"❌ 發生錯誤：{e}")
