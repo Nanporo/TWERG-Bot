@@ -19,6 +19,11 @@ def draw_dyfi_map_sync(town_cdi, eq_no="未知", mag="未知", depth="未知", t
     logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 
     try:
+        import matplotlib
+        matplotlib.use('Agg')
+        # 全域設定中文字型與關閉 unicode_minus，避免全形符號與負號渲染失敗或產生警告
+        matplotlib.rcParams['font.sans-serif'] = ['PingFang TC', 'Heiti TC', 'Microsoft JhengHei', 'Noto Sans CJK TC', 'WenQuanYi Zen Hei', 'sans-serif']
+        matplotlib.rcParams['axes.unicode_minus'] = False
         import geopandas as gpd
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
@@ -102,8 +107,8 @@ def draw_dyfi_map_sync(town_cdi, eq_no="未知", mag="未知", depth="未知", t
     # 4. 繪製圖例 (Legend)
     legend_labels = [
         ("0", "#464f5c"), ("1", "#6bba6b"), ("2", "#00aaff"), ("3", "#0041ff"),
-        ("4", "#fae696"), ("5-", "#ffe600"), ("5+", "#ff9900"),
-        ("6-", "#ff2800"), ("6+", "#a50021"), ("7", "#b40068")
+        ("4", "#fae696"), ("5－", "#ffe600"), ("5＋", "#ff9900"),
+        ("6－", "#ff2800"), ("6＋", "#a50021"), ("7", "#b40068")
     ]
     legend_elements = [
         Line2D([0], [0], marker='o', color='w', label=lbl, markerfacecolor=c, 
@@ -207,8 +212,8 @@ async def generate_dyfi_message(eq_data):
         grade_map = {
             "0": "⚫", 
             "1": "⚪", 
-            "2": "🟢", 
-            "3": "🔵", 
+            "2": "🔵", 
+            "3": "🟢", 
             "4": "🟡", 
             "5-": "🟠", "5弱": "🟠", 
             "5+": "🟤", "5強": "🟤", 
