@@ -12,7 +12,7 @@ Its main purpose is to automatically push [TWERG "Did You Feel It?"](https://www
 
 ### 自動推送地震報告 Automated Earthquake Report
 
-- 當有顯著有感地震發生時，自動將報告及TWERG 體感回報連結推送到指定的伺服器頻道。
+- 當有顯著有感地震發生時，自動將報告及 TWERG 體感回報連結推送到指定的伺服器頻道。
 - Automatically pushes significant earthquake reports and "Did You Feel It?" URLs to designated server channels.
 
 ### 自訂的推送設定 Customizable Push Settings
@@ -21,7 +21,7 @@ Its main purpose is to automatically push [TWERG "Did You Feel It?"](https://www
 - Server Administrators can configure the auto-push toggle, target channels, and minimum magnitude in settings.
 
 ### 即時查詢 Real-time Query
-- 手動查詢最新一筆地震資料，以及TWERG 體感回報網址。
+- 手動查詢最新一筆地震資料，以及 TWERG 體感回報網址。
 - Manually query the latest earthquake data.
 
 ### YouTube 直播監控
