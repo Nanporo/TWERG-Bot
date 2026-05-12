@@ -84,7 +84,7 @@ class EarthquakeCog(commands.Cog):
                     embed.add_field(name="發生時間", value=discord_time, inline=False)
                     
                     view = discord.ui.View()
-                    button = discord.ui.Button(label="體感回報網頁", url=report_url, style=discord.ButtonStyle.link)
+                    button = discord.ui.Button(label="TWERG 體感回報網頁", url=report_url, style=discord.ButtonStyle.link)
                     view.add_item(button)
                     
                     # 讀取各伺服器的獨立設定
@@ -99,7 +99,7 @@ class EarthquakeCog(commands.Cog):
                     except ValueError:
                         mag_val = 0.0 # 若無法解析規模(如: 未知)，預設為0.0
                         
-                    # 若為強制推送體感回報，先檢查是否有資料
+                    # 若為強制推送 TWERG 體感回報，先檢查是否有資料
                     if force and push_type == "dyfi":
                         dyfi_url = f"https://www.twerg.org/api/dyfi-reports?eq_no={current_no}"
                         has_data = False
@@ -113,7 +113,7 @@ class EarthquakeCog(commands.Cog):
                             pass
                             
                         if not has_data:
-                            await reply_message("⚠️ 未推送，沒有體感回報資料")
+                            await reply_message("⚠️ 未推送，沒有 TWERG 體感回報資料")
                             return
 
                     pushed_channels = []
@@ -165,16 +165,16 @@ class EarthquakeCog(commands.Cog):
                     if pushed_channels:
                         if push_type == "report":
                             if dyfi_scheduled_channels:
-                                self.bot.dispatch("earthquake_pushed", current_no, dyfi_scheduled_channels)
+                                self.bot.dispatch("earthquake_pushed", current_no, dyfi_scheduled_channels, str(magnitude), str(focal_depth), origin_time_str)
                         elif push_type == "dyfi":
-                            self.bot.dispatch("force_dyfi_report", current_no, pushed_channels)
+                            self.bot.dispatch("force_dyfi_report", current_no, pushed_channels, str(magnitude), str(focal_depth), origin_time_str)
                             
                     # 推送成功後的回報
                     if force:
                         msg = f"✅ 已強制推送地震編號：`{current_no}`"
                         if push_type == "dyfi":
-                            msg += " 的體感回報"
-                            print(f"🚨 管理員手動推送了地震 {current_no} 的體感回報")
+                            msg += " 的 TWERG 體感回報"
+                            print(f"🚨 管理員手動推送了地震 {current_no} 的 TWERG 體感回報")
                         else:
                             print(f"🚨 管理員手動推送了地震報告：{current_no}")
                         await reply_message(msg)

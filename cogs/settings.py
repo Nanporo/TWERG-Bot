@@ -67,7 +67,7 @@ class YTSettingsView(discord.ui.View):
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
         
-    @discord.ui.button(label="體感回報設定", style=discord.ButtonStyle.secondary, row=3)
+    @discord.ui.button(label="TWERG 體感回報設定", style=discord.ButtonStyle.secondary, row=3)
     async def go_to_eq_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = SettingsView(self.guild_id)
         await interaction.response.edit_message(embed=view.build_embed(), view=view)
@@ -141,30 +141,34 @@ class SettingsView(discord.ui.View):
         # 兼容設定檔，確保新功能有預設值
         if "auto_dyfi_report" not in self.settings:
             self.settings["auto_dyfi_report"] = True
+        if "render_map" not in self.settings:
+            self.settings["render_map"] = True
 
     def build_embed(self) -> discord.Embed:
         """根據當前設定建立 Embed 排版"""
         embed = discord.Embed(
-            title="`⚙️` 伺服器地震推送設定",
-            description="調整當前伺服器的地震推送選項。",
+            title="`⚙️` 伺服器 TWERG 體感回報推送設定",
+            description="調整當前伺服器的自動推送選項。",
             color=0xff3846
         )
         
         # 解析狀態
         auto_push_status = "`🟢` 已啟用" if self.settings.get("auto_push") else "`🔴` 已停用"
         auto_dyfi_status = "`🟢` 已啟用" if self.settings.get("auto_dyfi_report", True) else "`🔴` 已停用"
+        render_map_status = "`🟢` 已啟用" if self.settings.get("render_map", True) else "`🔴` 已停用"
         channel_ids = self.settings.get("target_channel_ids", [])
         channel_status = "\n".join([f"<#{c_id}>" for c_id in channel_ids]) if channel_ids else "⚠️ 尚未設定"
         min_mag = self.settings.get("min_magnitude", 4.0)
         
         embed.add_field(name="自動推送狀態", value=auto_push_status, inline=False)
         embed.add_field(name="30分鐘後初步統計", value=auto_dyfi_status, inline=False)
+        embed.add_field(name="初步統計包含地圖圖片", value=f"{render_map_status}\n-# 停用不影響 /dyfi 指令", inline=False)
         embed.add_field(name="推送目標頻道列表", value=channel_status, inline=False)
         embed.add_field(name="最低推送規模", value=f"芮氏 {min_mag}", inline=False)
         
         return embed
 
-    @discord.ui.button(label="切換自動推送", style=discord.ButtonStyle.primary, row=0)
+    @discord.ui.button(label="切換自動推送", emoji="📨", style=discord.ButtonStyle.primary, row=0)
     async def toggle_auto_push(self, interaction: discord.Interaction, button: discord.ui.Button):
         """切換是否自動推送地震回報"""
         current_status = self.settings.get("auto_push", False)
@@ -175,7 +179,7 @@ class SettingsView(discord.ui.View):
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
         
-    @discord.ui.button(label="切換初步統計", style=discord.ButtonStyle.primary, row=0)
+    @discord.ui.button(label="切換初步統計", emoji="🕟", style=discord.ButtonStyle.primary, row=0)
     async def toggle_auto_dyfi(self, interaction: discord.Interaction, button: discord.ui.Button):
         """切換是否發送30分鐘後初步統計"""
         current_status = self.settings.get("auto_dyfi_report", True)
@@ -186,6 +190,17 @@ class SettingsView(discord.ui.View):
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
         
+    @discord.ui.button(label="切換地圖渲染", emoji="🗺️", style=discord.ButtonStyle.primary, row=0)
+    async def toggle_render_map(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """切換是否渲染地圖"""
+        current_status = self.settings.get("render_map", True)
+        self.settings["render_map"] = not current_status
+        
+        # 儲存並更新介面
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
     @discord.ui.button(label="監控設定", style=discord.ButtonStyle.secondary, row=3)
     async def go_to_yt_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = YTSettingsView(self.guild_id)

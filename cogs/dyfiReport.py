@@ -2,7 +2,15 @@ import discord
 from discord.ext import commands
 import aiohttp
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+import json
+import io
+
+# 嘗試載入地圖產生器，若失敗則設為 None
+try:
+    from cogs.dyfi import draw_dyfi_map_sync
+except ImportError:
+    draw_dyfi_map_sync = None
 
 class DyfiReportCog(commands.Cog):
     def __init__(self, bot):
@@ -11,24 +19,24 @@ class DyfiReportCog(commands.Cog):
         self.scheduled_eqs = set()
 
     @commands.Cog.listener()
-    async def on_earthquake_pushed(self, eq_no: str, channels: list):
+    async def on_earthquake_pushed(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知"):
         # 檢查是否已經在倒數中
         if eq_no in self.scheduled_eqs:
-            print(f"⚠️ 地震 {eq_no} 的體感回報已在排程中，略過重複觸發。")
+            print(f"⚠️ 地震 {eq_no} 的 TWERG 體感回報已在排程中，略過重複觸發。")
             return
             
         self.scheduled_eqs.add(eq_no)
-        print(f"⏳ 已排程地震 {eq_no} 的體感回報，將在 30 分鐘後發送...")
+        print(f"⏳ 已排程地震 {eq_no} 的 TWERG 體感回報，將在 30 分鐘後發送...")
         
         # 將等待與發送的工作建立為背景任務，不阻塞目前的事件處理
-        self.bot.loop.create_task(self.send_dyfi_report(eq_no, channels, delay=1800))
+        self.bot.loop.create_task(self.send_dyfi_report(eq_no, channels, magnitude, depth, origin_time, delay=1800))
 
     @commands.Cog.listener()
-    async def on_force_dyfi_report(self, eq_no: str, channels: list):
-        print(f"🚨 管理員強制推送了地震 {eq_no} 的體感回報！")
-        self.bot.loop.create_task(self.send_dyfi_report(eq_no, channels, delay=0))
+    async def on_force_dyfi_report(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知"):
+        print(f"🚨 管理員強制推送了地震 {eq_no} 的 TWERG 體感回報！")
+        self.bot.loop.create_task(self.send_dyfi_report(eq_no, channels, magnitude, depth, origin_time, delay=0))
 
-    async def send_dyfi_report(self, eq_no: str, channels: list, delay: int = 1800):
+    async def send_dyfi_report(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知", delay: int = 1800):
         if delay > 0:
             await asyncio.sleep(delay)
             self.scheduled_eqs.discard(eq_no) # 倒數結束，從清單移除
@@ -39,7 +47,7 @@ class DyfiReportCog(commands.Cog):
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
                     if response.status != 200:
-                        print(f"⚠️ 無法取得體感回報資料，狀態碼：{response.status}")
+                        print(f"⚠️ 無法取得 TWERG 體感回報資料，狀態碼：{response.status}")
                         return
                     
                     data = await response.json()
@@ -50,20 +58,23 @@ class DyfiReportCog(commands.Cog):
                     calibrated_at_str = meta.get("calibratedAt", "")
                     
                     if total_reports == 0:
-                        print(f"⚠️ 地震 {eq_no} 沒有任何體感回報，取消發送。")
+                        print(f"⚠️ 地震 {eq_no} 沒有任何 TWERG 體感回報，取消發送。")
                         return
                         
                     if calibrated_at_str:
                         try:
                             calibrated_dt = datetime.fromisoformat(calibrated_at_str.replace("Z", "+00:00"))
                             calibrated_discord_time = f"<t:{int(calibrated_dt.timestamp())}:f>"
+                            map_stats_time = calibrated_dt.astimezone(timezone(timedelta(hours=8))).strftime("%Y/%m/%d %H:%M")
                         except ValueError:
                             calibrated_discord_time = calibrated_at_str
+                            map_stats_time = calibrated_at_str
                     else:
                         calibrated_discord_time = "無資料"
+                        map_stats_time = "無資料"
                         
                     # 以下可依據後續需求隨時調整排版格式
-                    message_content = f"📑 體感回報結果（{eq_no}）"
+                    message_content = f"📑 TWERG 體感回報結果（{eq_no}）"
                     
                     embed = discord.Embed(
                         title=f"30分鐘初步統計",
@@ -72,13 +83,27 @@ class DyfiReportCog(commands.Cog):
                     
                     embed.add_field(name="📊 回報數量", value=f"{total_reports} 筆", inline=True)
                     embed.add_field(name="✅ 認可數量", value=f"{valid_reports} 筆", inline=True)
-                    embed.add_field(name="🕓 體感回報統計時間", value=calibrated_discord_time, inline=False)
+                    embed.add_field(name="🕓 回報統計時間", value=calibrated_discord_time, inline=False)
                     
                     town_cdi = data.get("townCDI", [])
+                    map_buf = None
                     if town_cdi:
                         # 過濾異常警告的資料
                         town_cdi = [town for town in town_cdi if str(town.get("anomalyWarning", 0)) != "1"]
                         
+                        try:
+                            with open('guild_settings.json', 'r', encoding='utf-8') as f:
+                                guild_settings = json.load(f)
+                        except Exception:
+                            guild_settings = {}
+                            
+                        any_wants_map = any(guild_settings.get(str(c.guild.id), {}).get("render_map", False) for c in channels)
+                        
+                        if draw_dyfi_map_sync and any_wants_map:
+                            # 在背景獨立運算，避免阻塞 Discord 迴圈
+                            loop = asyncio.get_running_loop()
+                            map_buf = await loop.run_in_executor(None, draw_dyfi_map_sync, town_cdi, eq_no, magnitude, depth, total_reports, map_stats_time, origin_time)
+
                         # 依照 grade 權重與體感震度 (cdi) 由大到小重新排序
                         grade_order = {"7": 10, "6強": 9, "6+": 9, "6弱": 8, "6-": 8, "5強": 7, "5+": 7, "5弱": 6, "5-": 6, "4": 5, "3": 4, "2": 3, "1": 2, "0": 1}
                         town_cdi.sort(key=lambda x: (grade_order.get(str(x.get("grade", "0")), 0), x.get("cdi", 0.0)), reverse=True)
@@ -106,18 +131,32 @@ class DyfiReportCog(commands.Cog):
                         inline=False
                     )
                     
-                    embed.set_footer(text="地震資訊請以中央氣象署發佈為準")
+                    embed.set_footer(text="地震資訊請以中央氣象署發佈為準。")
                     
+
                     view = discord.ui.View()
-                    btn_url = discord.ui.Button(label="體感回報表單", url=f"https://www.twerg.org/dyfi?eq={eq_no}", style=discord.ButtonStyle.link)
+                    btn_url = discord.ui.Button(label="TWERG 體感回報表單", url=f"https://www.twerg.org/dyfi?eq={eq_no}", style=discord.ButtonStyle.link, row=0)
                     view.add_item(btn_url)
 
-                    btn_recent_reports = discord.ui.Button(label="最近地震報告", url="https://www.twerg.org/reports", style=discord.ButtonStyle.link, row=2)
+                    btn_recent_reports = discord.ui.Button(label="最近地震報告", url="https://www.twerg.org/reports", style=discord.ButtonStyle.link, row=0)
                     view.add_item(btn_recent_reports)
+                    
+                    # 先將緩衝區的圖片提取為純位元組 (bytes)，避免被第一個頻道傳送後自動關閉檔案
+                    map_bytes = map_buf.getvalue() if map_buf else None
                     
                     for channel in channels:
                         try:
-                            await channel.send(content=message_content, embed=embed, view=view)
+                            guild_id_str = str(channel.guild.id)
+                            render_map = guild_settings.get(guild_id_str, {}).get("render_map", True)
+                            channel_embed = embed.copy()
+                            
+                            if map_bytes and render_map:
+                                # 為每個頻道獨立建立 BytesIO 物件
+                                map_file = discord.File(fp=io.BytesIO(map_bytes), filename="dyfi_map.png")
+                                channel_embed.set_image(url="attachment://dyfi_map.png")
+                                await channel.send(content=message_content, embed=channel_embed, view=view, file=map_file)
+                            else:
+                                await channel.send(content=message_content, embed=channel_embed, view=view)
                         except discord.Forbidden:
                             print(f"❌ 無法發送體感報告至頻道 {channel.id}：權限不足。")
                         except Exception as e:

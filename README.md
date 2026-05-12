@@ -2,17 +2,17 @@
 
 **TWERG BOT** 是地牛記錄小組的 Discord 機器人。
 
-主要功能為自動推送[地震體感回報網址](https://www.twerg.org/reports)，並附帶一些實用的簡易功能。
+主要功能為自動推送[TWERG 體感回報地震網址](https://www.twerg.org/reports)，並附帶一些實用的簡易功能。
 
 **TWERG BOT** is a Discord bot for TWERG.
 
-Its main purpose is to automatically push [TWERG's "Did You Feel It?"](https://www.twerg.org/reports) (體感回報) URLs for earthquakes, along with some concise and useful earthquake-related features. 
+Its main purpose is to automatically push [TWERG "Did You Feel It?"](https://www.twerg.org/reports) (TWERG 體感回報) URLs for earthquakes, along with some concise and useful earthquake-related features. 
 
 ## 功能 / Features
 
 ### 自動推送地震報告 Automated Earthquake Report
 
-- 當有顯著有感地震發生時，自動將報告及體感回報連結推送到指定的伺服器頻道。
+- 當有顯著有感地震發生時，自動將報告及TWERG 體感回報連結推送到指定的伺服器頻道。
 - Automatically pushes significant earthquake reports and "Did You Feel It?" URLs to designated server channels.
 
 ### 自訂的推送設定 Customizable Push Settings
@@ -21,7 +21,7 @@ Its main purpose is to automatically push [TWERG's "Did You Feel It?"](https://w
 - Server Administrators can configure the auto-push toggle, target channels, and minimum magnitude in settings.
 
 ### 即時查詢 Real-time Query
-- 手動查詢最新一筆地震資料，以及體感回報網址。
+- 手動查詢最新一筆地震資料，以及TWERG 體感回報網址。
 - Manually query the latest earthquake data.
 
 ### YouTube 直播監控
@@ -69,7 +69,7 @@ python bot.py
 
 ### 一般指令 / General Commands
 - `/about` - 顯示關於 TWERG BOT 的資訊 / Show information about TWERG BOT
-- `/dyfi` - 查詢最新一筆顯著有感地震報告並取得體感回報連結 / Query the latest significant earthquake report and get the "Did You Feel It" link
+- `/dyfi` - 查詢最新一筆顯著有感地震報告並取得TWERG 體感回報連結 / Query the latest significant earthquake report and get the "TWERG Did You Feel It" link
 - `/help` - 顯示使用幫助與可用指令清單 / Show help and available commands
 - `/invite` - 取得地牛記錄小組的 Discord 邀請網址 / Get the Discord invite link for TWERG
 - `/yt` - 查詢 YouTube 上的地震監視直播人數 / Query the number of viewers in the earthquake live streams on YouTube
@@ -110,7 +110,7 @@ If you encounter any issues, please contact the BOT author.
 
 ## 特別感謝 / Special Thanks
 
-- `yoworingo` 提供體感回報方面的建議
+- `yoworingo` 提供TWERG 體感回報方面的建議
 - `easontet` 提供計算公式
 
 ## 授權 / License
