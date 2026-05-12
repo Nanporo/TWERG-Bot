@@ -45,7 +45,7 @@ cd TWERG-Bot
 
 **安裝所需套件 (Install dependencies)**
 ```bash
-pip install discord.py
+pip install discord.py geopandas matplotlib
 ```
 
 ### 設定檔 (Configuration)
