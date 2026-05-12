@@ -2,7 +2,7 @@
 
 **TWERG BOT** 是地牛記錄小組的 Discord 機器人。
 
-主要功能為自動推送[TWERG 體感回報地震網址](https://www.twerg.org/reports)，並附帶一些實用的簡易功能。
+主要功能為自動推送 [TWERG 體感回報地震網址](https://www.twerg.org/reports)，並附帶一些實用的簡易功能。
 
 **TWERG BOT** is a Discord bot for TWERG.
 
