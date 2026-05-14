@@ -90,9 +90,6 @@ class DyfiReportCog(commands.Cog):
                     town_cdi = data.get("townCDI", [])
                     map_bytes = None
                     if town_cdi:
-                        # 過濾異常警告的資料
-                        town_cdi = [town for town in town_cdi if str(town.get("anomalyWarning", 0)) != "1"]
-                        
                         try:
                             with open('guild_settings.json', 'r', encoding='utf-8') as f:
                                 guild_settings = json.load(f)
@@ -134,7 +131,7 @@ class DyfiReportCog(commands.Cog):
                             emoji = grade_map.get(grade, "⚫")
                             fw_grade = grade.translate(str.maketrans("01234567-+", "０１２３４５６７－＋"))
                             grade_text = fw_grade if any(c in grade for c in ["弱", "強", "-", "+"]) else f"{fw_grade}級"
-                            suspect_mark = " `⚠️`" if town.get("isSuspect") else ""
+                            suspect_mark = " `⚠️`" if town.get("isSuspect") or str(town.get("anomalyWarning", 0)) == "1" else ""
                             top_towns.append(f"`{emoji}` {grade_text}　{county} {town_name}{suspect_mark}")
                         
                         towns_value = "\n".join(top_towns) if top_towns else "目前無符合條件的回報資料"

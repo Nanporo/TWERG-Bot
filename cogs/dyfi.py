@@ -66,9 +66,6 @@ async def generate_dyfi_message(bot, eq_data):
     town_cdi = dyfi_data.get("townCDI", [])
     map_file = None
     if town_cdi:
-        # 過濾異常警告的資料
-        town_cdi = [town for town in town_cdi if str(town.get("anomalyWarning", 0)) != "1"]
-        
         # 獨立在背景執行緒中產生圖片，避免阻塞 Discord 機器人
         os.makedirs('temp', exist_ok=True)
         output_path = f"temp/map_{current_no}_{int(time.time())}.png"
@@ -111,7 +108,7 @@ async def generate_dyfi_message(bot, eq_data):
             emoji = grade_map.get(grade, "⚫")
             fw_grade = grade.translate(str.maketrans("01234567-+", "０１２３４５６７－＋"))
             grade_text = fw_grade if any(c in grade for c in ["弱", "強", "-", "+"]) else f"{fw_grade}級"
-            suspect_mark = " `⚠️`" if town.get("isSuspect") else ""
+            suspect_mark = " `⚠️`" if town.get("isSuspect") or str(town.get("anomalyWarning", 0)) == "1" else ""
             top_towns.append(f"`{emoji}` {grade_text}　{town.get('countyName', '')} {town.get('townName', '')}{suspect_mark}")
         towns_value = "\n".join(top_towns) if top_towns else "目前無符合條件的回報資料"
     else:
