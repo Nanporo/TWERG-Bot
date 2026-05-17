@@ -98,5 +98,30 @@ class ConsoleOutputCog(commands.Cog):
             if hasattr(self, 'original_stderr'):
                 self.original_stderr.write(f"❌ send_console_task 發生錯誤: {e}\n")
 
+    @commands.Cog.listener()
+    async def on_app_command_completion(self, interaction: discord.Interaction, command):
+        user = interaction.user
+        guild = interaction.guild.name if interaction.guild else "私人訊息"
+        print(f"⌨️ [指令] {user} 於 {guild} 使用了斜線指令：/{command.name}")
+
+    @commands.Cog.listener()
+    async def on_command_completion(self, ctx: commands.Context):
+        user = ctx.author
+        guild = ctx.guild.name if ctx.guild else "私人訊息"
+        print(f"⌨️ [指令] {user} 於 {guild} 使用了傳統指令：{ctx.message.content}")
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot:
+            return
+            
+        is_dm = message.guild is None
+        if is_dm:
+            print(f"💬 [私訊] {message.author} 傳送了私訊：{message.clean_content}")
+            
+        if self.bot.user in message.mentions:
+            guild_name = message.guild.name if message.guild else "私訊"
+            print(f"🔔 [提及] {message.author} 於 {guild_name} 提及了機器人：{message.clean_content}")
+
 async def setup(bot):
     await bot.add_cog(ConsoleOutputCog(bot))

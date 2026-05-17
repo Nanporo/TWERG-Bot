@@ -143,6 +143,8 @@ class SettingsView(discord.ui.View):
             self.settings["auto_dyfi_report"] = True
         if "render_map" not in self.settings:
             self.settings["render_map"] = True
+        if "discord_dyfi" not in self.settings:
+            self.settings["discord_dyfi"] = True
 
     def build_embed(self) -> discord.Embed:
         """根據當前設定建立 Embed 排版"""
@@ -156,6 +158,7 @@ class SettingsView(discord.ui.View):
         auto_push_status = "`🟢` 已啟用" if self.settings.get("auto_push") else "`🔴` 已停用"
         auto_dyfi_status = "`🟢` 已啟用" if self.settings.get("auto_dyfi_report", True) else "`🔴` 已停用"
         render_map_status = "`🟢` 已啟用" if self.settings.get("render_map", True) else "`🔴` 已停用"
+        discord_dyfi_status = "`🟢` 已啟用" if self.settings.get("discord_dyfi", True) else "`🔴` 已停用"
         channel_ids = self.settings.get("target_channel_ids", [])
         channel_status = "\n".join([f"<#{c_id}>" for c_id in channel_ids]) if channel_ids else "⚠️ 尚未設定"
         min_mag = self.settings.get("min_magnitude", 4.0)
@@ -163,6 +166,7 @@ class SettingsView(discord.ui.View):
         embed.add_field(name="自動推送狀態", value=auto_push_status, inline=False)
         embed.add_field(name="30分鐘後初步統計", value=auto_dyfi_status, inline=False)
         embed.add_field(name="初步統計包含地圖圖片", value=f"{render_map_status}\n-# 停用不影響 /dyfi 指令", inline=False)
+        embed.add_field(name="整合 Discord 體感回報", value=f"{discord_dyfi_status}\n-# 將 Discord 頻道的訊息回報納入統計與地圖中", inline=False)
         embed.add_field(name="推送目標頻道列表", value=channel_status, inline=False)
         embed.add_field(name="最低推送規模", value=f"芮氏 {min_mag}", inline=False)
         
@@ -195,6 +199,17 @@ class SettingsView(discord.ui.View):
         """切換是否渲染地圖"""
         current_status = self.settings.get("render_map", True)
         self.settings["render_map"] = not current_status
+        
+        # 儲存並更新介面
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.button(label="切換 Discord 體感", emoji="💬", style=discord.ButtonStyle.primary, row=0)
+    async def toggle_discord_dyfi(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """切換是否整合 Discord 體感資料"""
+        current_status = self.settings.get("discord_dyfi", True)
+        self.settings["discord_dyfi"] = not current_status
         
         # 儲存並更新介面
         self.all_settings[self.guild_id] = self.settings

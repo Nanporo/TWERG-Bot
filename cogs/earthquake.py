@@ -184,7 +184,7 @@ class EarthquakeCog(commands.Cog):
                         print(f"🚨 管理員手動推送了地震報告：{current_no}")
                     await reply_message(msg)
                 else:
-                    print(f"🚨 自動發現並發送新地震報告：{current_no}")
+                    print(f"🚨 自動推播完成：發現新地震報告 {current_no}，共發送至 {len(pushed_channels)} 個頻道")
 
         except Exception as e:
             await reply_message(f"❌ 發生錯誤：{e}")

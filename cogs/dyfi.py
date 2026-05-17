@@ -10,8 +10,9 @@ import os
 import time
 import logging
 from cogs.dyfi_map import render_map
+from cogs.discord_dyfi import fetch_discord_reports
 
-async def generate_dyfi_message(bot, eq_data):
+async def generate_dyfi_message(bot, eq_data, guild_id=None):
     """將指定的地震資料轉換為 Discord 訊息與 Embed 的輔助函數"""
     current_no = eq_data.get('EarthquakeNo')
     eq_info = eq_data.get('EarthquakeInfo', {})
@@ -34,6 +35,24 @@ async def generate_dyfi_message(bot, eq_data):
     except ValueError:
         discord_time = origin_time_str
 
+    # 判斷是否需要抓取 Discord 頻道回報
+    discord_reports = []
+    wants_discord = True
+    if guild_id:
+        try:
+            with open('guild_settings.json', 'r', encoding='utf-8') as f:
+                guild_settings = json.load(f)
+            wants_discord = guild_settings.get(str(guild_id), {}).get("discord_dyfi", True)
+        except Exception:
+            pass
+            
+    if wants_discord:
+        fetched_reports = await fetch_discord_reports(bot, origin_time_str)
+        if fetched_reports is None:
+            wants_discord = False
+        else:
+            discord_reports = fetched_reports
+
     # 獨立抓取體感回報資料
     dyfi_url = f"https://www.twerg.org/api/dyfi-reports?eq_no={current_no}"
     try:
@@ -55,7 +74,7 @@ async def generate_dyfi_message(bot, eq_data):
             # 處理 API 回傳的 ISO 8601 格式時間並轉為時間戳
             calibrated_dt = datetime.fromisoformat(calibrated_at_str.replace("Z", "+00:00"))
             calibrated_discord_time = f"<t:{int(calibrated_dt.timestamp())}:f>"
-            map_stats_time = calibrated_dt.astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M")
+            map_stats_time = calibrated_dt.astimezone(timezone(timedelta(hours=8))).strftime("%H:%M")
         except ValueError:
             calibrated_discord_time = calibrated_at_str
             map_stats_time = calibrated_at_str
@@ -64,6 +83,26 @@ async def generate_dyfi_message(bot, eq_data):
         map_stats_time = "無資料"
 
     town_cdi = dyfi_data.get("townCDI", [])
+    
+    # 整合 discord_reports 到 town_cdi
+    if discord_reports:
+        discord_grade_cdi = {"0": 0.0, "1": 1.0, "2": 1.5, "3": 2.5, "4": 3.5, "5弱": 4.0, "5強": 4.5, "6弱": 5.0, "6強": 6.0, "7": 6.5}
+        for dr in discord_reports:
+            town_cdi.append({
+                "countyName": dr["county"],
+                "townName": dr["town"],
+                "grade": dr["grade"],
+                "cdi": discord_grade_cdi.get(str(dr["grade"]), 0.0),
+                "isSuspect": False,
+                "isDiscord": True
+            })
+        merged_towns = {}
+        for t in town_cdi:
+            key = f"{t.get('countyName', '')}|{t.get('townName', '')}"
+            if key not in merged_towns or t.get("cdi", 0.0) > merged_towns[key].get("cdi", 0.0):
+                merged_towns[key] = t
+        town_cdi = list(merged_towns.values())
+
     map_file = None
     if town_cdi:
         # 獨立在背景執行緒中產生圖片，避免阻塞 Discord 機器人
@@ -74,7 +113,7 @@ async def generate_dyfi_message(bot, eq_data):
         loop = asyncio.get_running_loop()
         def run_render():
             try:
-                return render_map(eq_no=current_no, epicenter=epicenter, eq_type=eq_type, output_path=output_path)
+                return render_map(eq_no=current_no, epicenter=epicenter, eq_type=eq_type, output_path=output_path, discord_reports=discord_reports)
             except Exception as e:
                 print(f"⚠️ 繪製地圖失敗: {e}")
                 return None
@@ -109,7 +148,8 @@ async def generate_dyfi_message(bot, eq_data):
             fw_grade = grade.translate(str.maketrans("01234567-+", "０１２３４５６７－＋"))
             grade_text = fw_grade if any(c in grade for c in ["弱", "強", "-", "+"]) else f"{fw_grade}級"
             suspect_mark = " `⚠️`" if town.get("isSuspect") or str(town.get("anomalyWarning", 0)) == "1" else ""
-            top_towns.append(f"`{emoji}` {grade_text}　{town.get('countyName', '')} {town.get('townName', '')}{suspect_mark}")
+            discord_mark = " `💬`" if town.get("isDiscord") else ""
+            top_towns.append(f"`{emoji}` {grade_text}　{town.get('countyName', '')} {town.get('townName', '')}{suspect_mark}{discord_mark}")
         towns_value = "\n".join(top_towns) if top_towns else "目前無符合條件的回報資料"
     else:
         towns_value = "目前無回報資料"
@@ -124,10 +164,10 @@ async def generate_dyfi_message(bot, eq_data):
     embed.add_field(name="深度", value=f"{focal_depth} 公里", inline=True)
     embed.add_field(name="發生時間", value=discord_time, inline=False)
     embed.add_field(name="📊 回報數量", value=f"{total_reports} 筆", inline=True)
-    embed.add_field(name="✅ 認可數量", value=f"{valid_reports} 筆", inline=True)
-    embed.add_field(name="🕓 體感回報統計時間", value=calibrated_discord_time, inline=False)
+    if wants_discord:
+        embed.add_field(name="💬 Discord 回報數量", value=f"{len(discord_reports)} 筆", inline=True)
     embed.add_field(name="最大回報內容", value=towns_value, inline=False)
-    embed.set_footer(text=f"地震資訊請以中央氣象署發佈為準。")
+    embed.set_footer(text=f"統計時間 {map_stats_time} • 地震資訊請以中央氣象署發佈為準")
     
     if map_file:
         embed.set_image(url="attachment://dyfi_map.png")
@@ -135,12 +175,13 @@ async def generate_dyfi_message(bot, eq_data):
     return message_content, embed, map_file
 
 class DyfiView(discord.ui.View):
-    def __init__(self, bot, earthquakes, current_index, counts):
+    def __init__(self, bot, earthquakes, current_index, counts, guild_id=None):
         super().__init__(timeout=300)
         self.bot = bot
         self.earthquakes = earthquakes[:8]
         self.current_index = current_index
         self.counts = counts
+        self.guild_id = guild_id
         self.selected_no = str(self.earthquakes[self.current_index].get('EarthquakeNo'))
         self.update_components()
 
@@ -188,7 +229,7 @@ class DyfiView(discord.ui.View):
             selected_eq = self.earthquakes[self.current_index]
             self.selected_no = str(selected_eq.get('EarthquakeNo'))
             
-            content, embed, map_file = await generate_dyfi_message(self.bot, selected_eq)
+            content, embed, map_file = await generate_dyfi_message(self.bot, selected_eq, self.guild_id)
             self.update_components()
             
             kwargs = {'content': content, 'embed': embed, 'view': self}
@@ -252,9 +293,9 @@ class DyfiCog(commands.Cog):
                 counts = dict(results)
 
                 # 產生預設最新一筆的 Embed 畫面
-                content, embed, map_file = await generate_dyfi_message(self.bot, latest_earthquake)
+                content, embed, map_file = await generate_dyfi_message(self.bot, latest_earthquake, interaction.guild_id)
                 # 產生包含近期 8 筆地震選單與切換按鈕的 View 控制項
-                view = DyfiView(self.bot, earthquakes, 0, counts)
+                view = DyfiView(self.bot, earthquakes, 0, counts, interaction.guild_id)
                 
                 if map_file:
                     await interaction.followup.send(content=content, embed=embed, view=view, file=map_file)

@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Rectangle
 from matplotlib import font_manager
 import numpy as np
 from PIL import Image
@@ -28,9 +28,9 @@ LAT_SCALE, LAT_OFF = -9012.2994,   4120.8375
 
 CDI_MAP = [
     (0.35, '#4b5563', '0',   '無感'),
-    (1.10, '#00AAFF', '1',   '微震'),
-    (1.90, '#0041FF', '2',   '輕震'),
-    (2.80, '#6cbb6c', '3',   '弱震'),
+    (1.10, '#6cbb6c', '1',   '微震'),
+    (1.90, '#00AAFF', '2',   '輕震'),
+    (2.80, '#0041FF', '3',   '弱震'),
     (3.70, '#FAE696', '4',   '中震'),
     (4.35, '#FFE600', '5弱', '強震'),
     (4.85, '#FF9900', '5強', '強震'),
@@ -133,11 +133,24 @@ def to_shape(g, arcs):
         return MultiPolygon(polys) if polys else None
     return None
 
-def render_map(eq_no, epicenter=None, eq_type='unknown', output_path=None):
+def render_map(eq_no, epicenter=None, eq_type='unknown', output_path=None, discord_reports=None):
     topo    = load_topo()
     data    = fetch_json(f'{API_BASE}?eq_no={eq_no}')
     arcs    = decode_arcs(topo)
     reports = data.get('townCDI', [])
+
+    if discord_reports:
+        grade_cdi = {"0": 0.0, "1": 1.0, "2": 1.5, "3": 2.5, "4": 3.5, "5弱": 4.0, "5強": 4.5, "6弱": 5.0, "6強": 6.0, "7": 6.5}
+        for dr in discord_reports:
+            reports.append({
+                'countyName': dr.get('county'),
+                'townName': dr.get('town'),
+                'grade': dr.get('grade'),
+                'cdi': grade_cdi.get(str(dr.get('grade')), 0.0),
+                'reportCount': 1,
+                'isSuspect': False,
+                'isDiscord': True
+            })
 
     try:
         logo = fetch_img(LOGO_URL)
@@ -182,6 +195,7 @@ def render_map(eq_no, epicenter=None, eq_type='unknown', output_path=None):
 
     ax.set_xlim(bnd[0]-x_pad, bnd[2]+x_pad)
     ax.set_ylim(bnd[3]+y_pad, bnd[1]-y_pad)
+    ax.set_aspect('equal', adjustable='box')
 
     centroids = {}
     for _, row in gdf.iterrows():
@@ -200,8 +214,13 @@ def render_map(eq_no, epicenter=None, eq_type='unknown', output_path=None):
             '_lon':   lon if lon is not None else r.get('lon_center'),
         })
 
-    rmap     = {f"{r['_cn']}|{r['_tn']}": r for r in rpts
-                if f"{r['_cn']}|{r['_tn']}" != '|'}
+    # 整合並將重複地區保留為最大體感震度
+    rmap = {}
+    for r in rpts:
+        key = f"{r['_cn']}|{r['_tn']}"
+        if key == '|': continue
+        if key not in rmap or r.get('cdi', 0) > rmap[key].get('cdi', 0):
+            rmap[key] = r
     rendered = set()
 
     def draw_dot(cx, cy, r):
@@ -211,9 +230,17 @@ def render_map(eq_no, epicenter=None, eq_type='unknown', output_path=None):
             ax.add_patch(Circle((cx, cy), rpx+rd(3.5),
                                 facecolor='none', edgecolor='#888888',
                                 linewidth=1.2, linestyle=(0,(4,2.5)), alpha=0.6, zorder=3))
-        ax.add_patch(Circle((cx, cy), rpx,
-                            facecolor=col, edgecolor='white',
-                            linewidth=0.7, alpha=0.9, zorder=4))
+        
+        if r.get('isDiscord'):
+            sq_rpx = rpx * 0.85
+            ax.add_patch(Rectangle((cx - sq_rpx, cy - sq_rpx), sq_rpx*2, sq_rpx*2,
+                                   facecolor=col, edgecolor='white',
+                                   linewidth=0.7, alpha=0.9, zorder=4,
+                                   joinstyle='round'))
+        else:
+            ax.add_patch(Circle((cx, cy), rpx,
+                                facecolor=col, edgecolor='white',
+                                linewidth=0.7, alpha=0.9, zorder=4))
 
     for key, (cx, cy) in centroids.items():
         r = rmap.get(key)

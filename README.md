@@ -58,32 +58,13 @@ pip install discord.py geopandas matplotlib shapely pillow
 "OWNER_ID": 自己的 Discord 使用者 ID，用於執行擁有者限定指令 (如 /shutdown)
 "GUILD_IDS": (選填) Discord 伺服器 ID 列表。用於即時同步斜線指令，若留空則會進行全域同步 (會等到天荒地老)
 "YT_VIDEO_ID": 要監控的 YouTube 直播 ID （watch?v= 後面那一串英文），未填寫則 /yt 指令不可用
+"DYFI_CHANNEL_ID": 偵測 Discord 訊息的頻道網址，若不將 Discord 頻道的訊息回報納入統計與地圖中，可不填寫
 ```
 
 ### 執行 (Run the bot)
 ```bash
 python bot.py
 ```
-
-## 指令列表 / Commands
-
-### 一般指令 / General Commands
-- `/about` - 顯示關於 TWERG BOT 的資訊 / Show information about TWERG BOT
-- `/dyfi` - 查詢最新一筆顯著有感地震報告並取得TWERG 體感回報連結 / Query the latest significant earthquake report and get the "TWERG Did You Feel It" link
-- `/help` - 顯示使用幫助與可用指令清單 / Show help and available commands
-- `/invite` - 取得地牛記錄小組的 Discord 邀請網址 / Get the Discord invite link for TWERG
-- `/yt` - 查詢 YouTube 上的地震監視直播人數 / Query the number of viewers in the earthquake live streams on YouTube
-
-
-### 管理員指令 / Administrator Commands (Requires Admin Permissions)
-- `/add` - 將目前頻道加入自動推送列表 / Add the current channel to the auto-push list
-- `/remove` - 將目前頻道從自動推送列表移除 / Remove the current channel from the auto-push list
-- `/settings` - 調整機器人設定/ Modify BOT settings
-
-### 擁有者指令 / Bot Owner Commands (Requires Bot Owner Status)
-- `/push` - 強制推送最新的一筆地震報告 / Force push the latest earthquake report
-- `/shutdown` - 關閉機器人 / Shutdown
-- `/restart` - 重新啟動機器人 / Restart
 
 ## 免責聲明 / Disclaimer
 
