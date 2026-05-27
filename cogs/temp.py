@@ -150,7 +150,7 @@ class TempCog(commands.Cog):
                 
                 embed.description = "\n".join(lines)
                 current_time = datetime.now(timezone(timedelta(hours=8))).strftime("%m-%d %H:%M")
-                embed.set_footer(text=f"資料來源：中央氣象署 • 查詢時間 {current_time}")
+                embed.set_footer(text=f"中央氣象署 • 查詢時間 {current_time}")
 
                 await interaction.followup.send(content=message_content, embed=embed)
 
