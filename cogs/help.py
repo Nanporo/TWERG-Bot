@@ -16,6 +16,8 @@ class HelpView(discord.ui.View):
         embed_general.add_field(name="/invite", value="🔗 取得地牛記錄小組的 Discord 邀請網址", inline=False)
         embed_general.add_field(name="/kkw", value="💥 計算地震規模相等於多少顆原子彈的能量", inline=False)
         embed_general.add_field(name="/yt", value="🖥️ 查詢 台灣地震監視 YouTube 直播觀看人數", inline=False)
+        embed_general.add_field(name="/temp", value="🌡️ 查詢今日台灣各測站的最高溫或最低溫排行", inline=False)
+        embed_general.add_field(name="/rainfall", value="☔ 查詢今日台灣各測站的累積雨量排行", inline=False)
         
         embed_admin = discord.Embed(title="管理員指令", color=0xff3846, description="需要管理員權限才能使用的指令")
         embed_admin.add_field(name="/add", value="📨 將目前頻道加入自動推送列表", inline=False)
