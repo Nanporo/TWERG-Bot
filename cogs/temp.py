@@ -5,12 +5,25 @@ import json
 from datetime import datetime, timezone, timedelta
 
 class TempView(discord.ui.View):
-    def __init__(self, results, is_high, show_high_altitude):
+    def __init__(self, bot, api_key, results, is_high, show_high_altitude, show_image=False, image_url=None):
         super().__init__(timeout=300)
+        self.bot = bot
+        self.api_key = api_key
         self.results = results
         self.is_high = is_high
         self.show_high_altitude = show_high_altitude
         self.show_details = False
+        self.show_image = show_image
+        self.image_url = image_url
+
+        for child in self.children:
+            if isinstance(child, discord.ui.Button):
+                if child.label == "顯示氣溫圖":
+                    if self.show_image:
+                        child.label = "隱藏氣溫圖"
+                elif child.label == "隱藏高海拔":
+                    if not self.show_high_altitude:
+                        child.label = "包含高海拔"
 
     def build_embed(self):
         message_content = "🌡️ 今日最高溫測站排行" if self.is_high else "❄️ 今日最低溫測站排行"
@@ -19,7 +32,15 @@ class TempView(discord.ui.View):
         embed = discord.Embed(color=0xff3846 if self.is_high else 0x3498db)
         
         lines = []
-        for i, r in enumerate(self.results[:10]):
+        display_results = []
+        for r in self.results:
+            if not self.show_high_altitude and r.get('altitude', 0) > 1500:
+                continue
+            display_results.append(r)
+            if len(display_results) >= 10:
+                break
+                
+        for i, r in enumerate(display_results):
             # 決定高低溫燈號
             temp_val = r['temp_sort']
             icon = "⚪️"
@@ -42,17 +63,21 @@ class TempView(discord.ui.View):
             num_emoji = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'][i]
             if i < 3:
                 rank_str = ['`🥇`', '`🥈`', '`🥉`'][i]
-                line = f"{num_emoji} **`{icon} {r['temp_display']}`** {r['county']}{r['town']} {rank_str}"
+                line = f"{num_emoji} `{icon} {r['temp_display']}` **{r['county']}{r['town']}** {rank_str}"
             else:
-                line = f"{num_emoji} **`{icon} {r['temp_display']}`** {r['county']}{r['town']}"
+                line = f"{num_emoji} `{icon} {r['temp_display']}` **{r['county']}{r['town']}**"
 
             if self.show_details:
-                line += f"\n> `{r['station']}` {r['time']}"
+                line += f"\n> {r['station']} {r['time']}"
             lines.append(line)
         
         embed.description = "\n".join(lines)
         current_time = datetime.now(timezone(timedelta(hours=8))).strftime("%m-%d %H:%M")
         embed.set_footer(text=f"中央氣象署 • 查詢時間 {current_time}")
+
+        if self.show_image and self.image_url:
+            embed.set_image(url=self.image_url)
+            
         return message_content, embed
 
     @discord.ui.button(label="顯示詳細資訊", style=discord.ButtonStyle.primary)
@@ -64,6 +89,32 @@ class TempView(discord.ui.View):
         else:
             button.label = "顯示詳細資訊"
             button.style = discord.ButtonStyle.primary
+            
+        content, embed = self.build_embed()
+        await interaction.response.edit_message(content=content, embed=embed, view=self)
+
+    @discord.ui.button(label="顯示氣溫圖", style=discord.ButtonStyle.secondary)
+    async def toggle_image(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.show_image = not self.show_image
+        
+        if self.show_image:
+            button.label = "隱藏氣溫圖"
+            if not self.image_url:
+                self.image_url = "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0038-001.jpg"
+            content, embed = self.build_embed()
+            await interaction.response.edit_message(content=content, embed=embed, view=self)
+        else:
+            button.label = "顯示氣溫圖"
+            content, embed = self.build_embed()
+            await interaction.response.edit_message(content=content, embed=embed, view=self)
+
+    @discord.ui.button(label="隱藏高海拔", style=discord.ButtonStyle.secondary)
+    async def toggle_altitude(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.show_high_altitude = not self.show_high_altitude
+        if self.show_high_altitude:
+            button.label = "隱藏高海拔"
+        else:
+            button.label = "包含高海拔"
             
         content, embed = self.build_embed()
         await interaction.response.edit_message(content=content, embed=embed, view=self)
@@ -81,7 +132,8 @@ class TempCog(commands.Cog):
     @app_commands.command(name="temp", description="查詢今日台灣各測站的最高溫或最低溫排行")
     @app_commands.describe(
         temp_type="選擇查詢最高溫或最低溫",
-        高海拔="是否包含高海拔測站"
+        高海拔="是否包含高海拔測站",
+        氣溫圖="是否顯示今日氣溫分布圖"
     )
     @app_commands.choices(temp_type=[
         app_commands.Choice(name="最高溫", value="high"),
@@ -89,8 +141,11 @@ class TempCog(commands.Cog):
     ], 高海拔=[
         app_commands.Choice(name="是", value="yes"),
         app_commands.Choice(name="否", value="no")
+    ], 氣溫圖=[
+        app_commands.Choice(name="顯示", value="yes"),
+        app_commands.Choice(name="不顯示", value="no")
     ])
-    async def temp_command(self, interaction: discord.Interaction, temp_type: app_commands.Choice[str], 高海拔: app_commands.Choice[str] = None):
+    async def temp_command(self, interaction: discord.Interaction, temp_type: app_commands.Choice[str], 高海拔: app_commands.Choice[str] = None, 氣溫圖: app_commands.Choice[str] = None):
         if not self.api_key:
             await interaction.response.send_message("⚠️ 未設定 API Key，無法查詢資料。", ephemeral=True)
             return
@@ -128,10 +183,6 @@ class TempCog(commands.Cog):
                     except ValueError:
                         altitude = 0.0
 
-                    # 若使用者選擇不包含，且測站高度 > 1000 公尺，則跳過此測站
-                    if not show_high_altitude and altitude > 1000:
-                        continue
-                    
                     weather = st.get('WeatherElement', {}).get('DailyExtreme', {})
                     
                     if temp_type.value == "high":
@@ -169,6 +220,7 @@ class TempCog(commands.Cog):
                         "station": station_name,
                         "county": county,
                         "town": town,
+                        "altitude": altitude,
                         "temp_display": temp_display,
                         "temp_sort": temp_sort,
                         "time": time_format
@@ -180,7 +232,13 @@ class TempCog(commands.Cog):
 
                 results.sort(key=lambda x: x['temp_sort'], reverse=is_high)
                 
-                view = TempView(results, is_high, show_high_altitude)
+                show_image_initial = 氣溫圖 and 氣溫圖.value == "yes"
+                image_url = None
+
+                if show_image_initial:
+                    image_url = "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0038-001.jpg"
+
+                view = TempView(self.bot, self.api_key, results, is_high, show_high_altitude, show_image_initial, image_url)
                 content, embed = view.build_embed()
 
                 await interaction.followup.send(content=content, embed=embed, view=view)

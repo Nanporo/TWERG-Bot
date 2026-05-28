@@ -146,6 +146,19 @@ class SettingsView(discord.ui.View):
         if "discord_dyfi" not in self.settings:
             self.settings["discord_dyfi"] = True
 
+        # 初始化時，根據目前的設定狀態來決定下拉選單各選項的「預設打勾狀態」
+        for child in self.children:
+            if isinstance(child, discord.ui.Select) and child.placeholder == "點此開啟或關閉功能 (可多選)":
+                for option in child.options:
+                    if option.value == "auto_push":
+                        option.default = self.settings.get("auto_push", False)
+                    elif option.value == "auto_dyfi_report":
+                        option.default = self.settings.get("auto_dyfi_report", True)
+                    elif option.value == "render_map":
+                        option.default = self.settings.get("render_map", True)
+                    elif option.value == "discord_dyfi":
+                        option.default = self.settings.get("discord_dyfi", True)
+
     def build_embed(self) -> discord.Embed:
         """根據當前設定建立 Embed 排版"""
         embed = discord.Embed(
@@ -172,48 +185,32 @@ class SettingsView(discord.ui.View):
         
         return embed
 
-    @discord.ui.button(label="切換自動推送", emoji="📨", style=discord.ButtonStyle.primary, row=0)
-    async def toggle_auto_push(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """切換是否自動推送地震回報"""
-        current_status = self.settings.get("auto_push", False)
-        self.settings["auto_push"] = not current_status
+    @discord.ui.select(
+        placeholder="點此開啟或關閉功能 (可多選)",
+        min_values=0,
+        max_values=4,
+        options=[
+            discord.SelectOption(label="自動推送", value="auto_push", description="啟用自動推送地震報告", emoji="📨"),
+            discord.SelectOption(label="初步統計", value="auto_dyfi_report", description="發送 30 分鐘後初步統計", emoji="🕟"),
+            discord.SelectOption(label="地圖渲染", value="render_map", description="初步統計包含地圖圖片", emoji="🗺️"),
+            discord.SelectOption(label="Discord 體感", value="discord_dyfi", description="整合 Discord 體感回報", emoji="💬")
+        ],
+        row=0
+    )
+    async def toggle_switches(self, interaction: discord.Interaction, select: discord.ui.Select):
+        """利用多選選單切換各種功能"""
+        self.settings["auto_push"] = "auto_push" in select.values
+        self.settings["auto_dyfi_report"] = "auto_dyfi_report" in select.values
+        self.settings["render_map"] = "render_map" in select.values
+        self.settings["discord_dyfi"] = "discord_dyfi" in select.values
         
-        # 儲存並更新介面
         self.all_settings[self.guild_id] = self.settings
         save_settings(self.all_settings)
-        await interaction.response.edit_message(embed=self.build_embed(), view=self)
-        
-    @discord.ui.button(label="切換初步統計", emoji="🕟", style=discord.ButtonStyle.primary, row=0)
-    async def toggle_auto_dyfi(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """切換是否發送30分鐘後初步統計"""
-        current_status = self.settings.get("auto_dyfi_report", True)
-        self.settings["auto_dyfi_report"] = not current_status
-        
-        # 儲存並更新介面
-        self.all_settings[self.guild_id] = self.settings
-        save_settings(self.all_settings)
-        await interaction.response.edit_message(embed=self.build_embed(), view=self)
-        
-    @discord.ui.button(label="切換地圖渲染", emoji="🗺️", style=discord.ButtonStyle.primary, row=0)
-    async def toggle_render_map(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """切換是否渲染地圖"""
-        current_status = self.settings.get("render_map", True)
-        self.settings["render_map"] = not current_status
-        
-        # 儲存並更新介面
-        self.all_settings[self.guild_id] = self.settings
-        save_settings(self.all_settings)
-        await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
-    @discord.ui.button(label="切換 Discord 體感", emoji="💬", style=discord.ButtonStyle.primary, row=0)
-    async def toggle_discord_dyfi(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """切換是否整合 Discord 體感資料"""
-        current_status = self.settings.get("discord_dyfi", True)
-        self.settings["discord_dyfi"] = not current_status
-        
-        # 儲存並更新介面
-        self.all_settings[self.guild_id] = self.settings
-        save_settings(self.all_settings)
+        # 更新選單的預設勾選狀態以反映操作結果
+        for option in select.options:
+            option.default = option.value in select.values
+
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
     @discord.ui.button(label="監控設定", style=discord.ButtonStyle.secondary, row=3)
