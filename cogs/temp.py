@@ -147,7 +147,7 @@ class TempCog(commands.Cog):
                     else:
                         fw_num = str(i+1).translate(str.maketrans("0123456789", "０１２３４５６７８９"))
                         rank_str = f'`{fw_num}`'
-                    lines.append(f"{icon} {rank_str} **{r['county']}{r['town']}** - **{r['temp_display']}**\n`{r['station']}` {r['time']}")
+                    lines.append(f"{icon} {rank_str} **{r['county']}{r['town']}** - **{r['temp_display']}**\n> `{r['station']}` {r['time']}")
                 
                 embed.description = "\n".join(lines)
                 current_time = datetime.now(timezone(timedelta(hours=8))).strftime("%m-%d %H:%M")
