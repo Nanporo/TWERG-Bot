@@ -4,6 +4,70 @@ from discord import app_commands
 import json
 from datetime import datetime, timezone, timedelta
 
+class TempView(discord.ui.View):
+    def __init__(self, results, is_high, show_high_altitude):
+        super().__init__(timeout=300)
+        self.results = results
+        self.is_high = is_high
+        self.show_high_altitude = show_high_altitude
+        self.show_details = False
+
+    def build_embed(self):
+        message_content = "🌡️ 今日最高溫測站排行" if self.is_high else "❄️ 今日最低溫測站排行"
+        if not self.show_high_altitude:
+            message_content += " (排除高海拔地區)"
+        embed = discord.Embed(color=0xff3846 if self.is_high else 0x3498db)
+        
+        lines = []
+        for i, r in enumerate(self.results[:10]):
+            # 決定高低溫燈號
+            temp_val = r['temp_sort']
+            icon = "⚪️"
+            if temp_val != 999.0 and temp_val != -999.0:
+                if self.is_high:
+                    if temp_val >= 38.0:
+                        icon = "🔴"
+                    elif temp_val >= 36.0:
+                        icon = "🟠"
+                    elif temp_val >= 32.0:
+                        icon = "🟡"
+                else:
+                    if temp_val <= 6.0:
+                        icon = "🟣"
+                    elif temp_val <= 12.0:
+                        icon = "🔵"
+                    elif temp_val <= 16.0:
+                        icon = "🟢"
+
+            num_emoji = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'][i]
+            if i < 3:
+                rank_str = ['`🥇`', '`🥈`', '`🥉`'][i]
+                line = f"{num_emoji} **`{icon} {r['temp_display']}`** {r['county']}{r['town']} {rank_str}"
+            else:
+                line = f"{num_emoji} **`{icon} {r['temp_display']}`** {r['county']}{r['town']}"
+
+            if self.show_details:
+                line += f"\n> `{r['station']}` {r['time']}"
+            lines.append(line)
+        
+        embed.description = "\n".join(lines)
+        current_time = datetime.now(timezone(timedelta(hours=8))).strftime("%m-%d %H:%M")
+        embed.set_footer(text=f"中央氣象署 • 查詢時間 {current_time}")
+        return message_content, embed
+
+    @discord.ui.button(label="顯示詳細資訊", style=discord.ButtonStyle.primary)
+    async def toggle_details(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.show_details = not self.show_details
+        if self.show_details:
+            button.label = "隱藏詳細資訊"
+            button.style = discord.ButtonStyle.secondary
+        else:
+            button.label = "顯示詳細資訊"
+            button.style = discord.ButtonStyle.primary
+            
+        content, embed = self.build_embed()
+        await interaction.response.edit_message(content=content, embed=embed, view=self)
+
 class TempCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -116,44 +180,10 @@ class TempCog(commands.Cog):
 
                 results.sort(key=lambda x: x['temp_sort'], reverse=is_high)
                 
-                message_content = "🌡️ 今日最高溫測站排行" if is_high else "❄️ 今日最低溫測站排行"
-                if not show_high_altitude:
-                    message_content += " (排除高海拔地區)"
-                embed = discord.Embed(color=0xff3846 if is_high else 0x3498db)
-                
-                lines = []
-                for i, r in enumerate(results[:10]):
-                    # 決定高低溫燈號
-                    temp_val = r['temp_sort']
-                    icon = "⚪️"
-                    if temp_val != 999.0 and temp_val != -999.0:
-                        if is_high:
-                            if temp_val >= 38.0:
-                                icon = "`🔴`"
-                            elif temp_val >= 36.0:
-                                icon = "`🟠`"
-                            elif temp_val >= 32.0:
-                                icon = "`🟡`"
-                        else:
-                            if temp_val <= 6.0:
-                                icon = "`🟣`"
-                            elif temp_val <= 12.0:
-                                icon = "`🔵`"
-                            elif temp_val <= 16.0:
-                                icon = "`🟢`"
+                view = TempView(results, is_high, show_high_altitude)
+                content, embed = view.build_embed()
 
-                    if i < 3:
-                        rank_str = ['`🥇`', '`🥈`', '`🥉`'][i]
-                    else:
-                        fw_num = str(i+1).translate(str.maketrans("0123456789", "０１２３４５６７８９"))
-                        rank_str = f'`{fw_num}`'
-                    lines.append(f"{icon} {rank_str} **{r['county']}{r['town']}** - **{r['temp_display']}**\n> `{r['station']}` {r['time']}")
-                
-                embed.description = "\n".join(lines)
-                current_time = datetime.now(timezone(timedelta(hours=8))).strftime("%m-%d %H:%M")
-                embed.set_footer(text=f"中央氣象署 • 查詢時間 {current_time}")
-
-                await interaction.followup.send(content=message_content, embed=embed)
+                await interaction.followup.send(content=content, embed=embed, view=view)
 
         except Exception as e:
             await interaction.followup.send(f"❌ 發生未預期的錯誤：{e}")
