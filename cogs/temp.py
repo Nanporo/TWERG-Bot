@@ -91,12 +91,13 @@ class TempCog(commands.Cog):
                         temp_display = f"{temp_val} °C"
                         temp_sort = temp_val
                         
-                    # 處理測得溫度的時間 (例如: 2026-05-27T15:20:00+08:00 -> 15:20)
+                    # 處理測得溫度的時間轉換為 Discord 時間戳
                     try:
-                        if temp_val <= -90.0:
+                        if temp_val <= -90.0 or not time_str or time_str == "-99":
                             time_format = "未知"
                         else:
-                            time_format = time_str.split('T')[1][:5] if time_str and time_str != "-99" else "未知"
+                            dt = datetime.fromisoformat(time_str)
+                            time_format = f"<t:{int(dt.timestamp())}:t>"
                     except Exception:
                         time_format = "未知"
 
@@ -146,7 +147,7 @@ class TempCog(commands.Cog):
                     else:
                         fw_num = str(i+1).translate(str.maketrans("0123456789", "０１２３４５６７８９"))
                         rank_str = f'`{fw_num}`'
-                    lines.append(f"{icon} {rank_str} **{r['county']}{r['town']} ({r['station']})** `{r['temp_display']}` ({r['time']})")
+                    lines.append(f"{icon} {rank_str} **{r['county']}{r['town']}** - **{r['temp_display']}**\n`{r['station']}` {r['time']}")
                 
                 embed.description = "\n".join(lines)
                 current_time = datetime.now(timezone(timedelta(hours=8))).strftime("%m-%d %H:%M")

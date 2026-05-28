@@ -172,8 +172,9 @@ class YTCog(commands.Cog):
             except Exception:
                 pass
 
+        message_content = "🖥️ 台灣地震監視 直播監控狀態"
         embed = discord.Embed(
-            title="台灣地震監視 直播監控狀態", 
+            title="", 
             description=f"每 5 分鐘自動檢查，若觀看人數增加超過 {threshold} 人將發送通知。", 
             color=0xffffff
             )
@@ -192,7 +193,7 @@ class YTCog(commands.Cog):
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label="YouTube 直播網址", url=self.video_url, style=discord.ButtonStyle.link))
         
-        await interaction.followup.send(embed=embed, view=view)
+        await interaction.followup.send(content=message_content, embed=embed, view=view)
 
 
 async def setup(bot):
