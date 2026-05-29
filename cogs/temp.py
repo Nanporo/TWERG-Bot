@@ -100,7 +100,8 @@ class TempView(discord.ui.View):
         if self.show_image:
             button.label = "隱藏氣溫圖"
             if not self.image_url:
-                self.image_url = "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0038-001.jpg"
+                timestamp = (int(datetime.now().timestamp()) // 300) * 300
+                self.image_url = f"https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0038-001.jpg?t={timestamp}"
             content, embed = self.build_embed()
             await interaction.response.edit_message(content=content, embed=embed, view=self)
         else:
@@ -236,7 +237,8 @@ class TempCog(commands.Cog):
                 image_url = None
 
                 if show_image_initial:
-                    image_url = "https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0038-001.jpg"
+                    timestamp = (int(datetime.now().timestamp()) // 300) * 300
+                    image_url = f"https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/O-A0038-001.jpg?t={timestamp}"
 
                 view = TempView(self.bot, self.api_key, results, is_high, show_high_altitude, show_image_initial, image_url)
                 content, embed = view.build_embed()

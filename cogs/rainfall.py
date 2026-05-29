@@ -62,7 +62,8 @@ class RainfallView(discord.ui.View):
 
         if self.show_image:
             data_id = "O-A0040-001" if self.is_large_interval else "O-A0040-002"
-            product_url = f"https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/{data_id}.jpg"
+            timestamp = (int(datetime.now().timestamp()) // 300) * 300
+            product_url = f"https://cwaopendata.s3.ap-northeast-1.amazonaws.com/Observation/{data_id}.jpg?t={timestamp}"
             embed.set_image(url=product_url)
             
         return message_content, embed
