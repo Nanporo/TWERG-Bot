@@ -4,7 +4,7 @@ from discord import app_commands
 import aiohttp
 import json
 from datetime import datetime, timezone, timedelta
-from ownercheck import is_owner
+from module.ownercheck import is_owner
 
 class EarthquakeCog(commands.Cog):
     def __init__(self, bot):

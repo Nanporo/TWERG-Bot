@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import json
-from ownercheck import is_owner
+from module.ownercheck import is_owner
 
 class GuildsCog(commands.Cog):
     def __init__(self, bot):

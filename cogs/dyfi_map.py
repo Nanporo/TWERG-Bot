@@ -11,7 +11,7 @@ from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import unary_union
 import geopandas as gpd
 
-TOPO_LOCAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'towns-mercator-10t.json')
+TOPO_LOCAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'maps/towns-mercator-10t.json')
 TOPO_URL   = 'https://cdn.jsdelivr.net/npm/taiwan-atlas/towns-mercator-10t.json'
 API_BASE   = 'https://www.twerg.org/api/dyfi-reports'
 LOGO_URL  = 'https://www.twerg.org/logo.png'

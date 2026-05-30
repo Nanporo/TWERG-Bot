@@ -10,7 +10,7 @@ class RainfallView(discord.ui.View):
         self.bot = bot
         self.api_key = api_key
         self.results = results
-        self.is_large_interval = True
+        self.is_large_interval = False
         self.show_image = show_image
         self.show_details = False
 

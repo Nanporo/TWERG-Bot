@@ -20,7 +20,7 @@ GRADE_EMOJIS = {
 
 def get_towns_mapping():
     """讀取地圖資料檔建立台灣所有縣市與鄉鎮的對照名稱陣列"""
-    topo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'towns-mercator-10t.json')
+    topo_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'maps/towns-mercator-10t.json')
     aliases_raw = []
     try:
         if os.path.exists(topo_path):

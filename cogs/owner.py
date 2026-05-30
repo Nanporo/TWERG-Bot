@@ -4,7 +4,7 @@ from discord import app_commands
 import sys
 import os
 import json
-from ownercheck import is_owner
+from module.ownercheck import is_owner
 
 class OwnerCog(commands.Cog):
     def __init__(self, bot):
