@@ -108,8 +108,14 @@ async def fetch_discord_reports(bot, origin_time_str: str):
             
         tw_tz = timezone(timedelta(hours=8))
         try:
-            dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
-            origin_time = dt.replace(tzinfo=tw_tz)
+            try:
+                dt = datetime.fromisoformat(origin_time_str.replace('Z', '+00:00'))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=tw_tz)
+                origin_time = dt
+            except ValueError:
+                dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
+                origin_time = dt.replace(tzinfo=tw_tz)
         except ValueError:
             return None
             
@@ -129,7 +135,12 @@ async def fetch_discord_reports(bot, origin_time_str: str):
                             for eq in data.get('records', {}).get('Earthquake', []):
                                 eq_time_str = eq.get('EarthquakeInfo', {}).get('OriginTime', '')
                                 try:
-                                    eq_dt = datetime.strptime(eq_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tw_tz)
+                                    try:
+                                        eq_dt = datetime.fromisoformat(eq_time_str.replace('Z', '+00:00'))
+                                        if eq_dt.tzinfo is None:
+                                            eq_dt = eq_dt.replace(tzinfo=tw_tz)
+                                    except ValueError:
+                                        eq_dt = datetime.strptime(eq_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tw_tz)
                                     # 如果這筆地震發生在 origin_time 之後，且比當前的 end_time 早
                                     if origin_time < eq_dt < end_time:
                                         end_time = eq_dt

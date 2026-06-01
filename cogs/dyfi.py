@@ -29,8 +29,13 @@ async def generate_dyfi_message(bot, eq_data, guild_id=None):
     # 轉換時間戳記
     try:
         tw_tz = timezone(timedelta(hours=8))
-        dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
-        dt = dt.replace(tzinfo=tw_tz)
+        try:
+            dt = datetime.fromisoformat(origin_time_str.replace('Z', '+00:00'))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=tw_tz)
+        except ValueError:
+            dt = datetime.strptime(origin_time_str, "%Y-%m-%d %H:%M:%S")
+            dt = dt.replace(tzinfo=tw_tz)
         discord_time = f"<t:{int(dt.timestamp())}:f>"
     except ValueError:
         discord_time = origin_time_str
@@ -195,7 +200,16 @@ class DyfiView(discord.ui.View):
             mag = eq_info.get('EarthquakeMagnitude', {}).get('MagnitudeValue', '未知')
             time_str = eq_info.get('OriginTime', '')
             try:
-                short_time = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S").strftime("%m-%d %H:%M")
+                tw_tz = timezone(timedelta(hours=8))
+                try:
+                    dt = datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=tw_tz)
+                    else:
+                        dt = dt.astimezone(tw_tz)
+                except ValueError:
+                    dt = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                short_time = dt.strftime("%m-%d %H:%M")
             except ValueError:
                 short_time = time_str[:16]
                 
