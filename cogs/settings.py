@@ -22,6 +22,55 @@ def save_settings(data):
     with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
+class SettingsOverviewView(discord.ui.View):
+    def __init__(self, guild_id: int | str):
+        super().__init__(timeout=None)
+        self.guild_id = str(guild_id)
+        self.all_settings = load_settings()
+        self.settings = self.all_settings.get(self.guild_id, {})
+
+    def build_embed(self) -> discord.Embed:
+        embed = discord.Embed(
+            title="`🛠️` 伺服器設定概覽",
+            description="請從下方選單選擇要調整的功能。",
+            color=0x2b2d31
+        )
+        
+        eq_status = "`🟢` 已啟用" if self.settings.get("auto_push") else "`🔴` 已停用"
+        yt_status = "`🟢` 已啟用" if self.settings.get("yt_monitor_enabled") else "`🔴` 已停用"
+        rmt_status = "`🟢` 已啟用" if self.settings.get("rmt_monitor_enabled") else "`🔴` 已停用"
+        
+        embed.add_field(name="⚙️ TWERG 體感回報設定", value=eq_status, inline=False)
+        embed.add_field(name="🖥️ YouTube 直播監控", value=yt_status, inline=False)
+        embed.add_field(name="📡 RMT 推送設定", value=rmt_status, inline=False)
+        
+        return embed
+
+    @discord.ui.select(
+        placeholder="選擇要設定的項目...",
+        options=[
+            discord.SelectOption(label="TWERG 體感回報設定", value="eq", emoji="⚙️", description="自動推送最新地震報告與體感統計"),
+            discord.SelectOption(label="YouTube 直播監控設定", value="yt", emoji="🖥️", description="監控地震直播人數異常增加"),
+            discord.SelectOption(label="RMT 推送設定", value="rmt", emoji="📡", description="自動推送 RMT 即時地震動報告")
+        ],
+        row=0
+    )
+    async def select_category(self, interaction: discord.Interaction, select: discord.ui.Select):
+        val = select.values[0]
+        if val == "eq":
+            view = SettingsView(self.guild_id)
+        elif val == "yt":
+            view = YTSettingsView(self.guild_id)
+        elif val == "rmt":
+            view = RMTSettingsView(self.guild_id)
+        
+        await interaction.response.edit_message(embed=view.build_embed(), view=view)
+
+    @discord.ui.button(label="關閉設定", style=discord.ButtonStyle.danger, row=1)
+    async def close_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.edit_message(content="✅ **設定已關閉**", embed=None, view=None)
+        self.stop()
+
 class YTSettingsView(discord.ui.View):
     def __init__(self, guild_id: int):
         super().__init__(timeout=None)
@@ -67,11 +116,6 @@ class YTSettingsView(discord.ui.View):
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
         
-    @discord.ui.button(label="TWERG 體感回報設定", style=discord.ButtonStyle.secondary, row=3)
-    async def go_to_eq_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = SettingsView(self.guild_id)
-        await interaction.response.edit_message(embed=view.build_embed(), view=view)
-
     @discord.ui.select(
         cls=discord.ui.ChannelSelect, 
         channel_types=[discord.ChannelType.text], 
@@ -105,7 +149,12 @@ class YTSettingsView(discord.ui.View):
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
-    @discord.ui.button(label="保存", style=discord.ButtonStyle.success, row=3)
+    @discord.ui.button(label="返回概覽", style=discord.ButtonStyle.secondary, row=3)
+    async def go_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = SettingsOverviewView(self.guild_id)
+        await interaction.response.edit_message(embed=view.build_embed(), view=view)
+
+    @discord.ui.button(label="完成設定", style=discord.ButtonStyle.success, row=3)
     async def finish_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.edit_message(
             content="✅ **設定已儲存**", 
@@ -114,6 +163,74 @@ class YTSettingsView(discord.ui.View):
         )
         self.stop()
 
+class RMTSettingsView(discord.ui.View):
+    def __init__(self, guild_id: int):
+        super().__init__(timeout=None)
+        self.guild_id = str(guild_id)
+        self.all_settings = load_settings()
+        
+        if self.guild_id not in self.all_settings:
+            self.all_settings[self.guild_id] = {}
+            
+        self.settings = self.all_settings[self.guild_id]
+        
+        # 若無監控設定則初始化預設值
+        if "rmt_monitor_enabled" not in self.settings:
+            self.settings["rmt_monitor_enabled"] = False
+        if "rmt_target_channel_ids" not in self.settings:
+            self.settings["rmt_target_channel_ids"] = []
+
+    def build_embed(self) -> discord.Embed:
+        """建立 RMT 自動推送設定 Embed 排版"""
+        embed = discord.Embed(
+            title="`📡` RMT 地震報告自動推送設定",
+            description="調整當前伺服器的 RMT 報告自動推送選項。",
+            color=0x3498db
+        )
+        
+        status = "`🟢` 已啟用" if self.settings.get("rmt_monitor_enabled") else "`🔴` 已停用"
+        channel_ids = self.settings.get("rmt_target_channel_ids", [])
+        channel_status = "\n".join([f"<#{c_id}>" for c_id in channel_ids]) if channel_ids else "⚠️ 尚未設定"
+        
+        embed.add_field(name="推送狀態", value=status, inline=False)
+        embed.add_field(name="推送發送頻道列表", value=channel_status, inline=False)
+        
+        return embed
+
+    @discord.ui.button(label="切換推送狀態", style=discord.ButtonStyle.primary, row=0)
+    async def toggle_rmt_monitor(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.settings["rmt_monitor_enabled"] = not self.settings.get("rmt_monitor_enabled", False)
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+        
+    @discord.ui.select(
+        cls=discord.ui.ChannelSelect, 
+        channel_types=[discord.ChannelType.text], 
+        placeholder="選擇推送發送頻道 (可多選，將覆蓋原設定)", 
+        min_values=0,
+        max_values=25,
+        row=1
+    )
+    async def select_rmt_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect):
+        self.settings["rmt_target_channel_ids"] = [c.id for c in select.values]
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.button(label="返回概覽", style=discord.ButtonStyle.secondary, row=2)
+    async def go_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = SettingsOverviewView(self.guild_id)
+        await interaction.response.edit_message(embed=view.build_embed(), view=view)
+
+    @discord.ui.button(label="完成設定", style=discord.ButtonStyle.success, row=2)
+    async def finish_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.edit_message(
+            content="✅ **設定已儲存**", 
+            embed=self.build_embed(), 
+            view=None
+        )
+        self.stop()
 
 class SettingsView(discord.ui.View):
     def __init__(self, guild_id: int):
@@ -213,11 +330,6 @@ class SettingsView(discord.ui.View):
 
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
-    @discord.ui.button(label="監控設定", style=discord.ButtonStyle.secondary, row=3)
-    async def go_to_yt_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = YTSettingsView(self.guild_id)
-        await interaction.response.edit_message(embed=view.build_embed(), view=view)
-
     @discord.ui.select(
         cls=discord.ui.ChannelSelect, 
         channel_types=[discord.ChannelType.text], 
@@ -255,7 +367,12 @@ class SettingsView(discord.ui.View):
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
 
-    @discord.ui.button(label="保存", style=discord.ButtonStyle.success, row=3)
+    @discord.ui.button(label="返回概覽", style=discord.ButtonStyle.secondary, row=3)
+    async def go_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = SettingsOverviewView(self.guild_id)
+        await interaction.response.edit_message(embed=view.build_embed(), view=view)
+
+    @discord.ui.button(label="完成設定", style=discord.ButtonStyle.success, row=3)
     async def finish_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         """其實沒有特別作用的確認按鈕"""
         await interaction.response.edit_message(
@@ -269,7 +386,7 @@ class SettingsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="settings", description="（限管理員）調整伺服器的地震自動推送設定")
+    @app_commands.command(name="settings", description="（限管理員）調整伺服器的自動推送與監控設定")
     @app_commands.default_permissions(administrator=True) # 限管理員可用
     async def settings_command(self, interaction: discord.Interaction):
         # 確認指令是在伺服器內使用
@@ -278,7 +395,7 @@ class SettingsCog(commands.Cog):
             return
             
         # 初始化 View 與 Embed
-        view = SettingsView(interaction.guild.id)
+        view = SettingsOverviewView(interaction.guild.id)
         embed = view.build_embed()
         
         # 傳送設定面板 (設為 ephemeral=True 代表僅有呼叫的管理員能看見與操作)
