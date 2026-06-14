@@ -20,7 +20,8 @@ class RMTView(discord.ui.View):
             dt_tw = dt_utc.astimezone(timezone(timedelta(hours=8)))
             time_label = dt_tw.strftime("%Y/%m/%d %H:%M:%S")
             
-            label = f"{time_label}, M {rec['mag']}"
+            sig_mark = " ⚠️" if rec.get('is_significant') else ""
+            label = f"{time_label}, M {rec['mag']}{sig_mark}"
             desc = "濾波種類: 10s"
             options.append(discord.SelectOption(
                 label=label[:100],
@@ -34,7 +35,7 @@ class RMTView(discord.ui.View):
         async def select_callback(interaction: discord.Interaction):
             self.current_index = int(select.values[0])
             self.update_components()
-            await interaction.response.edit_message(embed=self.build_embed(), view=self)
+            await interaction.response.edit_message(content="🏐 RMT 報告", embed=self.build_embed(), view=self)
             
         select.callback = select_callback
         self.add_item(select)
@@ -50,7 +51,7 @@ class RMTView(discord.ui.View):
         
         embed = discord.Embed(
             title="RMT 地震報告",
-            url="https://rmt.earth.sinica.edu.tw/report.htm",
+            url="https://rmt.earth.sinica.edu.tw/",
             color=0x3498db
         )
         
@@ -60,7 +61,7 @@ class RMTView(discord.ui.View):
         embed.add_field(name="濾波種類", value="10s", inline=True)
         
         embed.set_image(url=rec['img_url'])
-        embed.set_footer(text="資料來源：中央研究院地球科學研究所")
+        embed.set_footer(text="中央研究院地球科學研究所 • 圖片內為 UTC 時間")
         return embed
 
 class RMTCog(commands.Cog):
@@ -70,7 +71,7 @@ class RMTCog(commands.Cog):
     @app_commands.command(name="rmt", description="查詢 RMT 地震報告 (前10筆)")
     async def rmt_command(self, interaction: discord.Interaction):
         await interaction.response.defer()
-        url = "https://rmt.earth.sinica.edu.tw/"
+        url = "https://rmt.earth.sinica.edu.tw/list.htm"
         
         try:
             async with self.bot.session.get(url) as response:
@@ -106,17 +107,19 @@ class RMTCog(commands.Cog):
                     if mag_match:
                         mag = mag_match.group(1)
                         
-                    # 依需求將濾波種類寫死為 10s
+                    # 濾波種類寫死為 10s
                     filter_str = "10s"
                     
-                    records.append({"time_str": utc_time_str, "mag": mag, "filter": filter_str, "img_url": img_url, "timestamp": timestamp_str})
+                    is_significant = bool(re.search(r'color\s*:\s*red', row_html, re.IGNORECASE))
+                    records.append({"time_str": utc_time_str, "mag": mag, "filter": filter_str, "img_url": img_url, "timestamp": timestamp_str, "is_significant": is_significant})
                         
                     if len(records) >= 10: break
                         
-                if not records: return await interaction.followup.send("⚠️ 目前找不到任何 RMT 地震資料。")
+                if not records:
+                    return await interaction.followup.send("⚠️ 目前找不到任何 RMT 地震資料。")
                     
                 view = RMTView(records)
-                await interaction.followup.send(embed=view.build_embed(), view=view)
+                await interaction.followup.send(content="🏐 RMT 報告", embed=view.build_embed(), view=view)
                 
         except Exception as e:
             await interaction.followup.send(f"❌ 發生未預期的錯誤：{e}")

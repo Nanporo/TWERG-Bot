@@ -17,7 +17,7 @@ class RMTAutoPushCog(commands.Cog):
     @tasks.loop(minutes=2)
     async def check_rmt_task(self):
         await self.bot.wait_until_ready()
-        url = "https://rmt.earth.sinica.edu.tw/"
+        url = "https://rmt.earth.sinica.edu.tw/list.htm"
         
         try:
             async with self.bot.session.get(url) as response:
@@ -96,9 +96,9 @@ class RMTAutoPushCog(commands.Cog):
         embed.add_field(name="規模", value=f"M {record['mag']}", inline=True)
         embed.add_field(name="濾波種類", value="10s", inline=True)
         embed.set_image(url=record['img_url'])
-        embed.set_footer(text="資料來源：中央研究院地球科學研究所 BATS")
+        embed.set_footer(text="中央研究院地球科學研究所 • 圖片內為 UTC 時間")
         
-        message_content = "📡 **新 RMT 地震報告已發布！**"
+        message_content = "RMT 自動報告"
         
         for guild_id, settings in guild_settings.items():
             if not settings.get("rmt_monitor_enabled", False):

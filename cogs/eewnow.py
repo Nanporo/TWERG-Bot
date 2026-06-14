@@ -45,7 +45,7 @@ class EewNowCog(commands.Cog):
                     embed.add_field(name="👥 在線人數", value=f"{number} 人", inline=False)
                     embed.add_field(name="🕓 查詢時間", value=discord_timestamp, inline=True)
                     
-                    embed.set_footer(text=f"僅供參考 • 資料來源 地牛Wake Up!")
+                    embed.set_footer(text=f"地牛Wake Up! • 僅供參考")
                     # ============================================
 
                     await interaction.followup.send(content=message_content, embed=embed)
