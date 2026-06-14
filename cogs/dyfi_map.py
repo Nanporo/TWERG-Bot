@@ -11,6 +11,8 @@ from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import unary_union
 import geopandas as gpd
 
+# 這是 DYFI 的地圖圖片生成模組
+
 TOPO_LOCAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'maps/towns-mercator-10t.json')
 TOPO_URL   = 'https://cdn.jsdelivr.net/npm/taiwan-atlas/towns-mercator-10t.json'
 API_BASE   = 'https://www.twerg.org/api/dyfi-reports'

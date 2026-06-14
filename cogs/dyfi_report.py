@@ -8,6 +8,8 @@ import io
 import os
 import time
 
+# 這是自動推送 DYFI 的模組，當接收到地震推播事件時會等待 30 分鐘後自動發送體感回報統計結果到指定頻道。
+
 # 嘗試載入地圖產生器，若失敗則設為 None
 try:
     from cogs.dyfi_map import render_map

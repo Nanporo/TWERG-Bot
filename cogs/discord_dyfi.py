@@ -4,6 +4,8 @@ import re
 from datetime import datetime, timezone, timedelta
 import discord
 
+# 這是抓取 Discord 頻道中使用者回報的模組
+
 # Discord 震度表情對照表
 GRADE_EMOJIS = {
     "A0": "0",
@@ -94,6 +96,11 @@ TOWNS_ALIASES = get_towns_mapping()
 
 async def fetch_discord_reports(bot, origin_time_str: str):
     """讀取 config.json 中的頻道，並分析地震發生後 30 分鐘內的體感訊息"""
+    # ⚠️ 如果未開啟 Message Content Intent，將無法讀取使用者發送的訊息內容，直接略過
+    if not bot.intents.message_content:
+        print("⚠️ 由於關閉了 message_content 權限，無法讀取歷史訊息，已自動略過 Discord 體感回報分析。")
+        return None
+
     try:
         with open('config.json', 'r', encoding='utf-8') as f:
             config = json.load(f)
