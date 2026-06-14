@@ -45,7 +45,9 @@ class GuildsCog(commands.Cog):
             if g_settings.get("auto_push", False):
                 marks += "📨 "
             if g_settings.get("yt_monitor_enabled", False):
-                marks += "🖥️"
+                marks += "🖥️ "
+            if g_settings.get("rmt_monitor_enabled", False):
+                marks += "📡 "
                 
             embed.add_field(
                 name=f"{i+1} : {guild.name} {marks}".strip(),

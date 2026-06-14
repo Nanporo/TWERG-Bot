@@ -15,11 +15,10 @@ class HelpView(discord.ui.View):
         embed_general.add_field(name="/help", value="🛠️ 使用幫助", inline=False)
         embed_general.add_field(name="/invite", value="🔗 取得地牛記錄小組的 Discord 邀請網址", inline=False)
         embed_general.add_field(name="/kkw", value="💥 計算地震規模相等於多少顆原子彈的能量", inline=False)
+        embed_general.add_field(name="/rmt", value="📡 查詢近期 BATS RMT 地震報告", inline=False)
         embed_general.add_field(name="/yt", value="🖥️ 查詢 台灣地震監視 YouTube 直播觀看人數", inline=False)
         
         embed_admin = discord.Embed(title="管理員指令", color=0xff3846, description="需要管理員權限才能使用的指令")
-        embed_admin.add_field(name="/add", value="📨 將目前頻道加入自動推送列表", inline=False)
-        embed_admin.add_field(name="/remove", value="🗑️ 將目前頻道從自動推送列表移除", inline=False)
         embed_admin.add_field(name="/settings", value="⚙️ 顯示或修改機器人的設定", inline=False)
         
         embed_owner = discord.Embed(title="擁有者指令", color=0x9b59b6, description="僅限機器人擁有者使用的指令")
