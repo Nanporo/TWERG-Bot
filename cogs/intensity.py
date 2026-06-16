@@ -16,7 +16,7 @@ class IntensityCog(commands.Cog):
         elif pga < 80.0: return "4級 (中震)"
         else:
             if pgv is None:
-                return "5弱或以上 (需提供 PGV 計算)"
+                return "4級或以上 (需提供 PGV 計算)"
             if pgv < 15: return "4級 (中震)"
             elif pgv < 30: return "5弱 (強震)"
             elif pgv < 50: return "5強 (強震)"
@@ -70,11 +70,19 @@ class IntensityCog(commands.Cog):
         lf_mmi = max(lf_vals) if lf_vals else 1.0
 
         # 依 USGS ShakeMap 邏輯，低震度由高頻 (PGA/Sa03) 主導，高震度由低頻 (PGV/Sa10) 主導
-        if not lf_vals: final_mmi = hf_mmi
-        elif not hf_vals: final_mmi = lf_mmi
-        elif hf_mmi < 5.0 and lf_mmi < 5.0: final_mmi = hf_mmi
-        elif hf_mmi >= 5.0 and lf_mmi >= 5.0: final_mmi = lf_mmi
-        else: final_mmi = max(hf_mmi, lf_mmi)
+        # MMI V 以下完全由高頻主導，VII 以上完全由低頻主導，V 到 VII 之間作餘弦平滑過渡
+        if not lf_vals:
+            final_mmi = hf_mmi
+        elif not hf_vals:
+            final_mmi = lf_mmi
+        else:
+            if hf_mmi <= 5.0:
+                w = 1.0
+            elif hf_mmi >= 7.0:
+                w = 0.0
+            else:
+                w = 0.5 * (1 + math.cos(math.pi * (hf_mmi - 5.0) / 2.0))
+            final_mmi = w * hf_mmi + (1.0 - w) * lf_mmi
 
         if final_mmi < 1.5: return "I (無感)"
         elif final_mmi < 3.5: return "II-III (微弱-弱)"
@@ -107,30 +115,36 @@ class IntensityCog(commands.Cog):
             else: return "X (完全毀滅)"
 
     def calc_cenc(self, pga, pgv):
-        # 中國 CENC (GB/T 17742-2020)
-        if pgv and (pga >= 5 or pgv >= 0.5):
-            if pgv < 1: return "IV度"
-            elif pgv < 2: return "V度"
-            elif pgv < 5: return "VI度"
-            elif pgv < 10: return "VII度"
-            elif pgv < 20: return "VIII度"
-            elif pgv < 39: return "IX度"
-            elif pgv < 78: return "X度"
-            elif pgv < 156: return "XI度"
-            else: return "XII度"
+        # 中國 CENC (GB/T 17742-2020) 
+        # 依據標準「7 儀器地震烈度的計算」，採用連續公式：
+        # Ia = 3.17 * log10(PGA) + 0.25 (PGA in cm/s²)
+        # Iv = 3.00 * log10(PGV) + 3.77 (PGV in cm/s)
+        if pga <= 0: return "I度"
+        
+        ia = 3.17 * math.log10(pga) + 0.25
+        
+        if ia < 6.0:
+            intensity = ia
         else:
-            if pga < 1: return "I度"
-            elif pga < 2: return "II度"
-            elif pga < 5: return "III度"
-            elif pga < 11: return "IV度"
-            elif pga < 22: return "V度"
-            elif pga < 44: return "VI度"
-            elif pga < 90: return "VII度"
-            elif pga < 177: return "VIII度"
-            elif pga < 353: return "IX度"
-            elif pga < 707: return "X度"
-            elif pga < 1414: return "XI度"
-            else: return "XII度"
+            if pgv is None or pgv <= 0:
+                return "VI度或以上 (需提供 PGV 計算)"
+            iv = 3.00 * math.log10(pgv) + 3.77
+            intensity = iv
+            
+        final_i = round(intensity)
+        
+        if final_i <= 1: return "I度"
+        elif final_i == 2: return "II度"
+        elif final_i == 3: return "III度"
+        elif final_i == 4: return "IV度"
+        elif final_i == 5: return "V度"
+        elif final_i == 6: return "VI度"
+        elif final_i == 7: return "VII度"
+        elif final_i == 8: return "VIII度"
+        elif final_i == 9: return "IX度"
+        elif final_i == 10: return "X度"
+        elif final_i == 11: return "XI度"
+        else: return "XII度"
 
     def calc_ems98(self, pga):
         # 歐洲 EMSC (EMS-98, 約略 PGA 分布)
