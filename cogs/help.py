@@ -13,6 +13,7 @@ class HelpView(discord.ui.View):
         embed_general.add_field(name="/dyfi", value="📃 最新一筆 TWERG 體感回報的網址和簡易地震報告", inline=False)
         embed_general.add_field(name="/eewnow", value="🌐 查詢 地牛Wake Up! 的在線人數", inline=False)
         embed_general.add_field(name="/help", value="🛠️ 使用幫助", inline=False)
+        embed_general.add_field(name="/intensity", value="🌍 透過輸入 PGA 和 PGV 大約換算各國地震震度", inline=False)
         embed_general.add_field(name="/invite", value="🔗 取得地牛記錄小組的 Discord 邀請網址", inline=False)
         embed_general.add_field(name="/kkw", value="💥 計算地震規模相等於多少顆原子彈的能量", inline=False)
         embed_general.add_field(name="/rmt", value="📡 查詢近期 BATS RMT 地震報告", inline=False)
