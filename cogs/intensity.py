@@ -3,6 +3,19 @@ from discord.ext import commands
 from discord import app_commands
 import math
 
+class IntensityView(discord.ui.View):
+    def __init__(self, author_id: int):
+        super().__init__(timeout=300)
+        self.author_id = author_id
+
+    @discord.ui.button(label="關閉", style=discord.ButtonStyle.secondary, emoji="❌")
+    async def close_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id == self.author_id:
+            await interaction.response.defer()
+            await interaction.message.delete()
+        else:
+            await interaction.response.send_message("❌ 只有該訊息的使用者可以關閉此訊息。", ephemeral=True)
+
 class IntensityCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -204,7 +217,8 @@ class IntensityCog(commands.Cog):
 
             embed.set_footer(text="⚠️ 本換算採用各國參考經驗公式，僅供粗略換算參考。\n實際震度會受儀器頻率響應、觀測站環境等多重因素影響。")
 
-            await interaction.response.send_message(embed=embed)
+            view = IntensityView(interaction.user.id)
+            await interaction.response.send_message(embed=embed, view=view)
         except Exception as e:
             await interaction.response.send_message(f"❌ 發生未預期的錯誤：{e}", ephemeral=True)
 
