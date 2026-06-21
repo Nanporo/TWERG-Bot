@@ -88,9 +88,9 @@ def simulate_gm(mag, depth, lon, lat, fault_type, target_lon, target_lat, is_sub
     
     # 基本的 GMPE (Ground Motion Prediction Equation) 架構
     if is_subduction:
-        # 隱沒帶地震衰減較慢
-        log_pga = 0.05 + 0.6 * mag - 0.003 * R - 0.9 * math.log10(R)
-        log_pgv = -1.2 + 0.65 * mag - 0.002 * R - 0.9 * math.log10(R)
+        # 隱沒帶地震震度較小，但衰減較慢（有感範圍廣）
+        log_pga = -0.25 + 0.6 * mag - 0.003 * R - 0.9 * math.log10(R)
+        log_pgv = -1.60 + 0.65 * mag - 0.002 * R - 0.9 * math.log10(R)
     else:
         # 淺層地殼地震
         log_pga = -0.01 + 0.6 * mag - 0.005 * R - 1.0 * math.log10(R)
@@ -376,8 +376,8 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
             font_intensity = ImageFont.truetype(path, 14)
             font_legend = ImageFont.truetype(path, 18)
             font_legend_title = ImageFont.truetype(path, 20)
-            font_watermark_1 = ImageFont.truetype(path, 120)
-            font_watermark_2 = ImageFont.truetype(path, 80)
+            font_watermark_1 = ImageFont.truetype(path, 200)
+            font_watermark_2 = ImageFont.truetype(path, 120)
             break
         except Exception:
             continue
@@ -482,9 +482,14 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
 
     # 繪製震央
     epx, epy = lonlat_to_img(lon, lat)
-    cross_size = 12
-    draw.line((epx - cross_size, epy - cross_size, epx + cross_size, epy + cross_size), fill="#ff3333", width=4)
-    draw.line((epx - cross_size, epy + cross_size, epx + cross_size, epy - cross_size), fill="#ff3333", width=4)
+    cross_size = 14
+    border_extend = 2
+    # 白色外框 (稍微延長以包覆末端)
+    draw.line((epx - cross_size - border_extend, epy - cross_size - border_extend, epx + cross_size + border_extend, epy + cross_size + border_extend), fill="#ffffff", width=12)
+    draw.line((epx - cross_size - border_extend, epy + cross_size + border_extend, epx + cross_size + border_extend, epy - cross_size - border_extend), fill="#ffffff", width=12)
+    # 紅色內部 (加粗)
+    draw.line((epx - cross_size, epy - cross_size, epx + cross_size, epy + cross_size), fill="#ff3333", width=8)
+    draw.line((epx - cross_size, epy + cross_size, epx + cross_size, epy - cross_size), fill="#ff3333", width=8)
 
     # 繪製浮水印
     watermark_text1 = "地震模擬"
