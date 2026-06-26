@@ -39,10 +39,12 @@ class SettingsOverviewView(discord.ui.View):
         eq_status = "`🟢` 已啟用" if self.settings.get("auto_push") else "`🔴` 已停用"
         yt_status = "`🟢` 已啟用" if self.settings.get("yt_monitor_enabled") else "`🔴` 已停用"
         rmt_status = "`🟢` 已啟用" if self.settings.get("rmt_monitor_enabled") else "`🔴` 已停用"
+        grmt_status = "`🟢` 已啟用" if self.settings.get("grmt_monitor_enabled") else "`🔴` 已停用"
         
         embed.add_field(name="⚙️ TWERG 體感回報設定", value=eq_status, inline=False)
         embed.add_field(name="🖥️ YouTube 直播監控", value=yt_status, inline=False)
         embed.add_field(name="📡 RMT 推送設定", value=rmt_status, inline=False)
+        embed.add_field(name="🌍 GRMT 推送設定", value=grmt_status, inline=False)
         
         return embed
 
@@ -51,7 +53,8 @@ class SettingsOverviewView(discord.ui.View):
         options=[
             discord.SelectOption(label="TWERG 體感回報設定", value="eq", emoji="⚙️", description="自動推送最新地震報告與體感統計"),
             discord.SelectOption(label="YouTube 直播監控設定", value="yt", emoji="🖥️", description="監控地震直播人數異常增加"),
-            discord.SelectOption(label="RMT 推送設定", value="rmt", emoji="📡", description="自動推送 RMT 即時地震動報告")
+            discord.SelectOption(label="RMT 推送設定", value="rmt", emoji="📡", description="自動推送 RMT 即時地震動報告"),
+            discord.SelectOption(label="GRMT 推送設定", value="grmt", emoji="🌍", description="自動推送 Global RMT 地震動報告")
         ],
         row=0
     )
@@ -63,6 +66,8 @@ class SettingsOverviewView(discord.ui.View):
             view = YTSettingsView(self.guild_id)
         elif val == "rmt":
             view = RMTSettingsView(self.guild_id)
+        elif val == "grmt":
+            view = GRMTSettingsView(self.guild_id)
         
         await interaction.response.edit_message(embed=view.build_embed(), view=view)
 
@@ -214,6 +219,73 @@ class RMTSettingsView(discord.ui.View):
     )
     async def select_rmt_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect):
         self.settings["rmt_target_channel_ids"] = [c.id for c in select.values]
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.button(label="返回概覽", style=discord.ButtonStyle.secondary, row=2)
+    async def go_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = SettingsOverviewView(self.guild_id)
+        await interaction.response.edit_message(embed=view.build_embed(), view=view)
+
+    @discord.ui.button(label="完成設定", style=discord.ButtonStyle.success, row=2)
+    async def finish_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.edit_message(
+            content="✅ **設定已儲存**", 
+            embed=self.build_embed(), 
+            view=None
+        )
+        self.stop()
+
+class GRMTSettingsView(discord.ui.View):
+    def __init__(self, guild_id: int):
+        super().__init__(timeout=None)
+        self.guild_id = str(guild_id)
+        self.all_settings = load_settings()
+        
+        if self.guild_id not in self.all_settings:
+            self.all_settings[self.guild_id] = {}
+            
+        self.settings = self.all_settings[self.guild_id]
+        
+        if "grmt_monitor_enabled" not in self.settings:
+            self.settings["grmt_monitor_enabled"] = False
+        if "grmt_target_channel_ids" not in self.settings:
+            self.settings["grmt_target_channel_ids"] = []
+
+    def build_embed(self) -> discord.Embed:
+        embed = discord.Embed(
+            title="`🌍` Global RMT 地震報告自動推送設定",
+            description="調整當前伺服器的 GRMT 報告自動推送選項。",
+            color=0x3498db
+        )
+        
+        status = "`🟢` 已啟用" if self.settings.get("grmt_monitor_enabled") else "`🔴` 已停用"
+        channel_ids = self.settings.get("grmt_target_channel_ids", [])
+        channel_status = "\n".join([f"<#{c_id}>" for c_id in channel_ids]) if channel_ids else "⚠️ 尚未設定"
+        
+        embed.add_field(name="推送狀態", value=status, inline=False)
+        embed.add_field(name="推送發送頻道列表", value=channel_status, inline=False)
+        
+        return embed
+
+    @discord.ui.button(label="切換推送狀態", style=discord.ButtonStyle.primary, row=0)
+    async def toggle_grmt_monitor(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.settings["grmt_monitor_enabled"] = not self.settings.get("grmt_monitor_enabled", False)
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+        
+    @discord.ui.select(
+        cls=discord.ui.ChannelSelect, 
+        channel_types=[discord.ChannelType.text], 
+        placeholder="選擇推送發送頻道 (可多選，將覆蓋原設定)", 
+        min_values=0,
+        max_values=25,
+        row=1
+    )
+    async def select_grmt_channel(self, interaction: discord.Interaction, select: discord.ui.ChannelSelect):
+        self.settings["grmt_target_channel_ids"] = [c.id for c in select.values]
         self.all_settings[self.guild_id] = self.settings
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)
