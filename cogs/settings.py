@@ -252,6 +252,8 @@ class GRMTSettingsView(discord.ui.View):
             self.settings["grmt_monitor_enabled"] = False
         if "grmt_target_channel_ids" not in self.settings:
             self.settings["grmt_target_channel_ids"] = []
+        if "grmt_only_significant" not in self.settings:
+            self.settings["grmt_only_significant"] = False
 
     def build_embed(self) -> discord.Embed:
         embed = discord.Embed(
@@ -261,10 +263,12 @@ class GRMTSettingsView(discord.ui.View):
         )
         
         status = "`🟢` 已啟用" if self.settings.get("grmt_monitor_enabled") else "`🔴` 已停用"
+        sig_status = "`🟢` 已啟用" if self.settings.get("grmt_only_significant") else "`🔴` 已停用"
         channel_ids = self.settings.get("grmt_target_channel_ids", [])
         channel_status = "\n".join([f"<#{c_id}>" for c_id in channel_ids]) if channel_ids else "⚠️ 尚未設定"
         
         embed.add_field(name="推送狀態", value=status, inline=False)
+        embed.add_field(name="僅推播重大地震", value=sig_status, inline=False)
         embed.add_field(name="推送發送頻道列表", value=channel_status, inline=False)
         
         return embed
@@ -272,6 +276,13 @@ class GRMTSettingsView(discord.ui.View):
     @discord.ui.button(label="切換推送狀態", style=discord.ButtonStyle.primary, row=0)
     async def toggle_grmt_monitor(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.settings["grmt_monitor_enabled"] = not self.settings.get("grmt_monitor_enabled", False)
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+        
+    @discord.ui.button(label="切換僅推播重大地震", style=discord.ButtonStyle.primary, row=0)
+    async def toggle_grmt_significant(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.settings["grmt_only_significant"] = not self.settings.get("grmt_only_significant", False)
         self.all_settings[self.guild_id] = self.settings
         save_settings(self.all_settings)
         await interaction.response.edit_message(embed=self.build_embed(), view=self)

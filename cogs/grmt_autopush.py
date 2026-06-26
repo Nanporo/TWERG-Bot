@@ -46,10 +46,13 @@ class GRMTAutoPushCog(commands.Cog):
                     if mag_match:
                         mag = mag_match.group(1)
                         
+                    is_significant = bool(re.search(r'color\s*:\s*red', row_html, re.IGNORECASE))
+                        
                     latest_record = {
                         "timestamp": timestamp_str,
                         "mag": mag,
-                        "img_url": img_url
+                        "img_url": img_url,
+                        "is_significant": is_significant
                     }
                     break # 只抓取最新的一筆資料即可
                     
@@ -100,6 +103,9 @@ class GRMTAutoPushCog(commands.Cog):
         
         for guild_id, settings in guild_settings.items():
             if not settings.get("grmt_monitor_enabled", False):
+                continue
+                
+            if settings.get("grmt_only_significant", False) and not record.get("is_significant", False):
                 continue
                 
             channel_ids = settings.get("grmt_target_channel_ids", [])
