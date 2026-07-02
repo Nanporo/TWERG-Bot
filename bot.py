@@ -52,7 +52,7 @@ class MyBot(commands.Bot):
         self.session = None
 
     async def setup_hook(self):       
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False))
         # ================= 載入所有模組 (Cogs) =================
         # 自動載入 cogs/ 資料夾下的所有 .py 檔案
         for filename in os.listdir('./cogs'):
