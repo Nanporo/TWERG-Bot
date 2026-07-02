@@ -107,4 +107,4 @@ class MyBot(commands.Bot):
 bot = MyBot()
 
 if __name__ == "__main__":
-    bot.run(DISCORD_TOKEN)
+    bot.run(DISCORD_TOKEN, root_logger=True)
