@@ -1,3 +1,4 @@
+import logging
 import json
 import os
 import re
@@ -89,7 +90,7 @@ def get_towns_mapping():
             aliases.sort(key=lambda x: len(x[0]), reverse=True)
             return aliases
     except Exception as e:
-        print("⚠️ 載入鄉鎮資料失敗:", e)
+        logging.warning("⚠️ 載入鄉鎮資料失敗:", e)
     return []
 
 TOWNS_ALIASES = get_towns_mapping()
@@ -98,7 +99,7 @@ async def fetch_discord_reports(bot, origin_time_str: str):
     """讀取 config.json 中的頻道，並分析地震發生後 30 分鐘內的體感訊息"""
     # ⚠️ 如果未開啟 Message Content Intent，將無法讀取使用者發送的訊息內容，直接略過
     if not bot.intents.message_content:
-        print("⚠️ 由於關閉了 message_content 權限，無法讀取歷史訊息，已自動略過 Discord 體感回報分析。")
+        logging.warning("⚠️ 由於關閉了 message_content 權限，無法讀取歷史訊息，已自動略過 Discord 體感回報分析。")
         return None
 
     try:
@@ -154,7 +155,7 @@ async def fetch_discord_reports(bot, origin_time_str: str):
                                 except ValueError:
                                     continue
             except Exception as e:
-                print(f"⚠️ 檢查下一筆地震時間失敗: {e}")
+                logging.warning(f"⚠️ 檢查下一筆地震時間失敗: {e}")
 
         # 防洗版機制：使用字典記錄，確保每個 Discord 用戶只能有一筆有效的體感回報
         user_reports = {}
@@ -229,7 +230,7 @@ async def fetch_discord_reports(bot, origin_time_str: str):
                     
         return list(user_reports.values())
     except Exception as e:
-        print(f"⚠️ 讀取 Discord 體感回報失敗: {e}")
+        logging.warning(f"⚠️ 讀取 Discord 體感回報失敗: {e}")
         return None
 
 async def setup(bot):

@@ -1,3 +1,4 @@
+import logging
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -75,7 +76,7 @@ class RMTCog(commands.Cog):
         
         try:
             async with self.bot.session.get(url) as response:
-                print(f"🌐 [RMT] 抓取 RMT 網頁，狀態碼：{response.status}")
+                logging.info(f"🌐 [RMT] 抓取 RMT 網頁，狀態碼：{response.status}")
                 if response.status != 200:
                     await interaction.followup.send(f"⚠️ 無法取得資料，狀態碼：{response.status}")
                     return
@@ -123,7 +124,7 @@ class RMTCog(commands.Cog):
                 
         except Exception as e:
             await interaction.followup.send(f"❌ 發生未預期的錯誤：{e}")
-            print(f"❌ /rmt 發生未預期的錯誤：{e}")
+            logging.error(f"❌ /rmt 發生未預期的錯誤：{e}")
 
 async def setup(bot):
     await bot.add_cog(RMTCog(bot))

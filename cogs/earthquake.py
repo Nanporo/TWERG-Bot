@@ -1,3 +1,4 @@
+import logging
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -53,7 +54,7 @@ class EarthquakeCog(commands.Cog):
                 if not force:
                     if self.last_earthquake_no is None:
                         self.last_earthquake_no = current_no
-                        print(f"🔄 初始載入完成，目前最新的地震編號為：{self.last_earthquake_no}")
+                        logging.info(f"🔄 初始載入完成，目前最新的地震編號為：{self.last_earthquake_no}")
                         return
                     if current_no == self.last_earthquake_no:
                         return
@@ -165,12 +166,12 @@ class EarthquakeCog(commands.Cog):
                                     if auto_dyfi and channel not in dyfi_scheduled_channels:
                                         dyfi_scheduled_channels.append(channel)
                                 except discord.Forbidden:
-                                    print(f"❌ 無法發送至頻道 {channel_id}：權限不足。")
+                                    logging.error(f"❌ 無法發送至頻道 {channel_id}：權限不足。")
                             elif push_type == "dyfi":
                                 if channel not in pushed_channels:
                                     pushed_channels.append(channel)
                         else:
-                            print(f"⚠️ 找不到頻道 {channel_id}。")
+                            logging.warning(f"⚠️ 找不到頻道 {channel_id}。")
                             
                 if pushed_channels:
                     if push_type == "report":
@@ -184,16 +185,16 @@ class EarthquakeCog(commands.Cog):
                     msg = f"✅ 已強制推送地震編號：`{current_no}`"
                     if push_type == "dyfi":
                         msg += " 的 TWERG 體感回報"
-                        print(f"🚨 管理員手動推送了地震 {current_no} 的 TWERG 體感回報")
+                        logging.info(f"🚨 管理員手動推送了地震 {current_no} 的 TWERG 體感回報")
                     else:
-                        print(f"🚨 管理員手動推送了地震報告：{current_no}")
+                        logging.info(f"🚨 管理員手動推送了地震報告：{current_no}")
                     await reply_message(msg)
                 else:
-                    print(f"🚨 自動推播完成：發現新地震報告 {current_no}，共發送至 {len(pushed_channels)} 個頻道")
+                    logging.info(f"🚨 自動推播完成：發現新地震報告 {current_no}，共發送至 {len(pushed_channels)} 個頻道")
 
         except Exception as e:
             await reply_message(f"❌ 發生錯誤：{e}")
-            print(f"❌ 發生未預期的錯誤：{e}")
+            logging.error(f"❌ 發生未預期的錯誤：{e}")
 
     @tasks.loop(seconds=30)
     async def check_earthquake(self):

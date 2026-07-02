@@ -1,3 +1,4 @@
+import logging
 import ssl
 import certifi
 
@@ -29,13 +30,13 @@ try:
     GUILD_IDS = config.get('GUILD_IDS', [])
     
 except FileNotFoundError:
-    print("❌ 錯誤：找不到 config.json 檔案！請確保它與 bot.py 放在同一個資料夾。")
+    logging.error("❌ 錯誤：找不到 config.json 檔案！請確保它與 bot.py 放在同一個資料夾。")
     sys.exit()
 except KeyError as e:
-    print(f"❌ 錯誤：config.json 缺少必要設定值 {e}！")
+    logging.error(f"❌ 錯誤：config.json 缺少必要設定值 {e}！")
     sys.exit()
 except Exception as e:
-    print(f"❌ 讀取 config.json 發生未知錯誤：{e}")
+    logging.error(f"❌ 讀取 config.json 發生未知錯誤：{e}")
     sys.exit()
 # ============================================
 
@@ -59,9 +60,9 @@ class MyBot(commands.Bot):
                 extension_name = f'cogs.{filename[:-3]}'
                 try:
                     await self.load_extension(extension_name)
-                    print(f"🔄 [模組] {extension_name} 載入完成")
+                    logging.info(f"🔄 [模組] {extension_name} 載入完成")
                 except Exception as e:
-                    print(f"❌ 載入模組 {extension_name} 時發生錯誤: {e}")
+                    logging.error(f"❌ 載入模組 {extension_name} 時發生錯誤: {e}")
         # ========================================================
 
         # ================= 同步斜線指令 =================
@@ -74,28 +75,28 @@ class MyBot(commands.Bot):
                     self.tree.copy_global_to(guild=guild)
                     # 執行同步
                     await self.tree.sync(guild=guild)
-                    print(f"🔄 [指令] 斜線指令已瞬間同步至伺服器：{guild_id}")
+                    logging.info(f"🔄 [指令] 斜線指令已瞬間同步至伺服器：{guild_id}")
                 except discord.Forbidden:
-                    print(f"⚠️ [警告] 無法同步至伺服器 {guild_id} (機器人可能未加入該伺服器，或缺少 application.commands 權限)")
+                    logging.warning(f"⚠️ [警告] 無法同步至伺服器 {guild_id} (機器人可能未加入該伺服器，或缺少 application.commands 權限)")
                 except discord.HTTPException as e:
-                    print(f"⚠️ [警告] 同步至伺服器 {guild_id} 失敗 (Discord API 錯誤): {e}")
+                    logging.warning(f"⚠️ [警告] 同步至伺服器 {guild_id} 失敗 (Discord API 錯誤): {e}")
                 except Exception as e:
-                    print(f"❌ 同步至伺服器 {guild_id} 發生未預期的錯誤: {e}")
+                    logging.error(f"❌ 同步至伺服器 {guild_id} 發生未預期的錯誤: {e}")
         else:
             # 如果 config.json 中沒有提供 GUILD_IDS，則執行全域同步，讓你等到下次 M8 都震完一個大序列都還沒顯示出來
-            print("🔄 [指令] 尚未設定 GUILD_IDS，準備執行全域指令同步 (需要一段時間才能在 Discord 看到選項)")
+            logging.info("🔄 [指令] 尚未設定 GUILD_IDS，準備執行全域指令同步 (需要一段時間才能在 Discord 看到選項)")
             try:
                 await self.tree.sync()
-                print("🔄 [指令] 全域指令同步完成。")
+                logging.info("🔄 [指令] 全域指令同步完成。")
             except Exception as e:
-                 print(f"❌ 全域指令同步發生錯誤: {e}")
+                 logging.error(f"❌ 全域指令同步發生錯誤: {e}")
         # ================================================
 
     async def on_ready(self):
-        print('====================================')
-        print(f'✅ 機器人已成功登入為: {self.user.name} (ID: {self.user.id})')
-        print(f'✅ 目前時間: {discord.utils.utcnow().astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")}')
-        print('====================================')
+        logging.info('====================================')
+        logging.info(f'✅ 機器人已成功登入為: {self.user.name} (ID: {self.user.id})')
+        logging.info(f'✅ 目前時間: {discord.utils.utcnow().astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")}')
+        logging.info('====================================')
 
     async def close(self):
         if self.session:

@@ -1,3 +1,4 @@
+import logging
 import json
 
 def get_owner_id():
@@ -6,7 +7,7 @@ def get_owner_id():
             config = json.load(f)
         return config.get('OWNER_ID')
     except Exception as e:
-        print(f"⚠️ 讀取 OWNER_ID 時發生錯誤: {e}")
+        logging.warning(f"⚠️ 讀取 OWNER_ID 時發生錯誤: {e}")
         return None
 
 OWNER_ID = get_owner_id()

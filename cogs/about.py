@@ -1,3 +1,4 @@
+import logging
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -11,7 +12,7 @@ class AboutCog(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         if not self.ready_printed:
-            print(f"🤖 TWERG BOT 當前版本: {self.version}")
+            logging.info(f"🤖 TWERG BOT 當前版本: {self.version}")
             self.ready_printed = True
 
     @app_commands.command(name="about", description="顯示關於 TWERG BOT 的資訊")

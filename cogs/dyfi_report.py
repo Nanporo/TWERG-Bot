@@ -1,3 +1,4 @@
+import logging
 import discord
 from discord.ext import commands
 import aiohttp
@@ -27,18 +28,18 @@ class DyfiReportCog(commands.Cog):
     async def on_earthquake_pushed(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知", epicenter: dict = None):
         # 檢查是否已經在倒數中
         if eq_no in self.scheduled_eqs:
-            print(f"⚠️ 地震 {eq_no} 的 TWERG 體感回報已在排程中，略過重複觸發。")
+            logging.warning(f"⚠️ 地震 {eq_no} 的 TWERG 體感回報已在排程中，略過重複觸發。")
             return
             
         self.scheduled_eqs.add(eq_no)
-        print(f"⏳ 已排程地震 {eq_no} 的 TWERG 體感回報，將在 30 分鐘後發送...")
+        logging.info(f"⏳ 已排程地震 {eq_no} 的 TWERG 體感回報，將在 30 分鐘後發送...")
         
         # 將等待與發送的工作建立為背景任務，不阻塞目前的事件處理
         self.bot.loop.create_task(self.send_dyfi_report(eq_no, channels, magnitude, depth, origin_time, delay=1800, epicenter=epicenter))
 
     @commands.Cog.listener()
     async def on_force_dyfi_report(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知", epicenter: dict = None):
-        print(f"🚨 管理員強制推送了地震 {eq_no} 的 TWERG 體感回報！")
+        logging.info(f"🚨 管理員強制推送了地震 {eq_no} 的 TWERG 體感回報！")
         self.bot.loop.create_task(self.send_dyfi_report(eq_no, channels, magnitude, depth, origin_time, delay=0, epicenter=epicenter))
 
     async def send_dyfi_report(self, eq_no: str, channels: list, magnitude: str = "未知", depth: str = "未知", origin_time: str = "未知", delay: int = 1800, epicenter: dict = None):
@@ -68,7 +69,7 @@ class DyfiReportCog(commands.Cog):
             async with aiohttp.ClientSession() as session:
                 async with session.get(url) as response:
                     if response.status != 200:
-                        print(f"⚠️ 無法取得 TWERG 體感回報資料，狀態碼：{response.status}")
+                        logging.warning(f"⚠️ 無法取得 TWERG 體感回報資料，狀態碼：{response.status}")
                         return
                     
                     data = await response.json()
@@ -144,7 +145,7 @@ class DyfiReportCog(commands.Cog):
                                         try:
                                             return render_map(eq_no=eq_no, epicenter=epicenter, eq_type=eq_type, output_path=path, discord_reports=dr_reports)
                                         except Exception as e:
-                                            print(f"⚠️ 繪製地圖失敗: {e}")
+                                            logging.warning(f"⚠️ 繪製地圖失敗: {e}")
                                             return None
                                             
                                     img_path = await loop.run_in_executor(None, run_render, output_path, current_discord_reports)
@@ -199,14 +200,14 @@ class DyfiReportCog(commands.Cog):
                             else:
                                 await channel.send(content=message_content, embed=send_embed, view=view)
                         except discord.Forbidden:
-                            print(f"❌ 無法發送體感報告至頻道 {channel.id}：權限不足。")
+                            logging.error(f"❌ 無法發送體感報告至頻道 {channel.id}：權限不足。")
                         except Exception as e:
-                            print(f"❌ 發送體感報告至頻道 {channel.id} 時發生錯誤：{e}")
+                            logging.error(f"❌ 發送體感報告至頻道 {channel.id} 時發生錯誤：{e}")
                     
-                    print(f"✅ 自動推播完成：地震 {eq_no} 的 30 分鐘初步統計！")
+                    logging.info(f"✅ 自動推播完成：地震 {eq_no} 的 30 分鐘初步統計！")
 
         except Exception as e:
-            print(f"❌ /dyfiReport 發生未預期的錯誤：{e}")
+            logging.error(f"❌ /dyfiReport 發生未預期的錯誤：{e}")
 
 async def setup(bot):
     await bot.add_cog(DyfiReportCog(bot))

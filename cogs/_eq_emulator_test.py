@@ -1,3 +1,4 @@
+import logging
 import math
 import os
 import io
@@ -346,4 +347,4 @@ if __name__ == '__main__':
     out = render_emulator_map_pil(6.0, 10, 121.5, 24.0, '逆斷層')
     with open('test_emulator.png', 'wb') as f:
         f.write(out.read())
-    print("Done")
+    logging.info("Done")

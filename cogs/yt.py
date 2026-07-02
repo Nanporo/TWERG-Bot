@@ -1,3 +1,4 @@
+import logging
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -22,7 +23,7 @@ class YTCog(commands.Cog):
             video_id = None
             
         if not video_id:
-            print("⚠️ 未填寫YouTube直播網址，直播監控功能將不可用")
+            logging.warning("⚠️ 未填寫YouTube直播網址，直播監控功能將不可用")
         else:
             self.video_url = f"https://www.youtube.com/watch?v={video_id}"
             self.monitor_task.start()
@@ -67,7 +68,7 @@ class YTCog(commands.Cog):
                     
                 return None
         except Exception as e:
-            print(f"❌ 獲取 YouTube 觀看人數失敗：{e}")
+            logging.error(f"❌ 獲取 YouTube 觀看人數失敗：{e}")
             return None
 
     @tasks.loop(minutes=5)
@@ -76,15 +77,15 @@ class YTCog(commands.Cog):
         current_viewers = await self.get_live_viewers()
         
         if current_viewers is not None and current_viewers > 1000000:
-            print(f"⚠️ 觀看人數異常 ({current_viewers} 人)，超過 100 萬，略過此次監控")
+            logging.warning(f"⚠️ 觀看人數異常 ({current_viewers} 人)，超過 100 萬，略過此次監控")
             return
 
         if current_viewers is not None and current_viewers < 100:
-            print(f"⚠️ 觀看人數過低 ({current_viewers} 人)，小於 100 人，可能為直播斷線，略過此次監控")
+            logging.warning(f"⚠️ 觀看人數過低 ({current_viewers} 人)，小於 100 人，可能為直播斷線，略過此次監控")
             return
 
         if current_viewers is None:
-            print("⚠️ 無法獲取 YouTube 直播觀看人數")
+            logging.warning("⚠️ 無法獲取 YouTube 直播觀看人數")
             return
 
         if self.last_viewers is not None:
@@ -128,9 +129,9 @@ class YTCog(commands.Cog):
                             view = discord.ui.View()
                             view.add_item(discord.ui.Button(label="YouTube 直播網址", url=self.video_url, style=discord.ButtonStyle.link))
                             await channel.send(embed=embed, view=view)
-                            print(f"🚨 已發送 YouTube 觀看人數增加通知至頻道 {channel_id} (增加 {diff} 人)")
+                            logging.info(f"🚨 已發送 YouTube 觀看人數增加通知至頻道 {channel_id} (增加 {diff} 人)")
                         except discord.Forbidden:
-                            print(f"❌ 無法發送 YouTube 監控通知至頻道 {channel_id}：權限不足。")
+                            logging.error(f"❌ 無法發送 YouTube 監控通知至頻道 {channel_id}：權限不足。")
                             pass
 
                 # 記錄該伺服器最後一次發送通知的時間

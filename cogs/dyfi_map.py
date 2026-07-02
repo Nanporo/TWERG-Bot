@@ -1,5 +1,10 @@
-import io, json, math, os, urllib.request
+import logging
+import io, json, math, os, urllib.request, ssl
 import matplotlib
+
+ssl_ctx = ssl.create_default_context()
+ssl_ctx.check_hostname = False
+ssl_ctx.verify_mode = ssl.CERT_NONE
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -80,17 +85,17 @@ def load_topo():
         with open(TOPO_LOCAL, encoding='utf-8') as f:
             return json.load(f)
     req = urllib.request.Request(TOPO_URL, headers={'User-Agent': 'TWERG-Bot/1.0'})
-    with urllib.request.urlopen(req) as r:
+    with urllib.request.urlopen(req, context=ssl_ctx) as r:
         return json.loads(r.read())
 
 def fetch_json(url):
     req = urllib.request.Request(url, headers={'User-Agent': 'TWERG-Bot/1.0'})
-    with urllib.request.urlopen(req) as r:
+    with urllib.request.urlopen(req, context=ssl_ctx) as r:
         return json.loads(r.read())
 
 def fetch_img(url):
     req = urllib.request.Request(url, headers={'User-Agent': 'TWERG-Bot/1.0'})
-    with urllib.request.urlopen(req) as r:
+    with urllib.request.urlopen(req, context=ssl_ctx) as r:
         return Image.open(io.BytesIO(r.read())).convert('RGBA')
 
 def decode_arcs(topo):
@@ -331,7 +336,7 @@ def render_map(eq_no, epicenter=None, eq_type='unknown', output_path=None, disco
 
 if __name__ == '__main__':
     out = render_map('115017')
-    print(f'地圖已儲存：{out}')
+    logging.info(f'地圖已儲存：{out}')
 
 async def setup(bot):
     pass

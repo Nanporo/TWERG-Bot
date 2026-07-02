@@ -123,7 +123,7 @@ async def generate_dyfi_message(bot, eq_data, guild_id=None):
             try:
                 return render_map(eq_no=current_no, epicenter=epicenter, eq_type=eq_type, output_path=output_path, discord_reports=discord_reports)
             except Exception as e:
-                print(f"⚠️ 繪製地圖失敗: {e}")
+                logging.warning(f"⚠️ 繪製地圖失敗: {e}")
                 return None
                 
         img_path = await loop.run_in_executor(None, run_render)
@@ -321,7 +321,7 @@ class DyfiCog(commands.Cog):
 
         except Exception as e:
             await interaction.followup.send(f"❌ 發生未預期的錯誤：{e}")
-            print(f"❌ /dyfi 發生未預期的錯誤：{e}")
+            logging.error(f"❌ /dyfi 發生未預期的錯誤：{e}")
 
 async def setup(bot):
     await bot.add_cog(DyfiCog(bot))

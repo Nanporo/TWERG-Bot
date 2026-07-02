@@ -1,3 +1,4 @@
+import logging
 import discord
 from discord.ext import commands, tasks
 import aiohttp
@@ -60,16 +61,16 @@ class RMTAutoPushCog(commands.Cog):
                 
                 if self.last_timestamp is None:
                     self.last_timestamp = current_timestamp
-                    print(f"🔄 [RMT 推送] 初始載入完成，目前最新的 RMT 報告為：{self.last_timestamp}")
+                    logging.info(f"🔄 [RMT 推送] 初始載入完成，目前最新的 RMT 報告為：{self.last_timestamp}")
                     return
                     
                 if current_timestamp != self.last_timestamp:
-                    print(f"🚨 [RMT 推送] 發現新 RMT 報告：{current_timestamp}！準備推送...")
+                    logging.info(f"🚨 [RMT 推送] 發現新 RMT 報告：{current_timestamp}！準備推送...")
                     self.last_timestamp = current_timestamp
                     await self.push_rmt_report(latest_record)
                     
         except Exception as e:
-            print(f"❌ [RMT 推送] 檢查更新時發生錯誤：{e}")
+            logging.error(f"❌ [RMT 推送] 檢查更新時發生錯誤：{e}")
 
     async def push_rmt_report(self, record):
         try:
@@ -115,9 +116,9 @@ class RMTAutoPushCog(commands.Cog):
                         view.add_item(btn)
                         await channel.send(content=message_content, embed=embed, view=view)
                     except discord.Forbidden:
-                        print(f"❌ [RMT 推送] 無法發送至頻道 {channel_id}：權限不足。")
+                        logging.error(f"❌ [RMT 推送] 無法發送至頻道 {channel_id}：權限不足。")
                     except Exception as e:
-                        print(f"❌ [RMT 推送] 發送至頻道 {channel_id} 失敗：{e}")
+                        logging.error(f"❌ [RMT 推送] 發送至頻道 {channel_id} 失敗：{e}")
 
 async def setup(bot):
     await bot.add_cog(RMTAutoPushCog(bot))
