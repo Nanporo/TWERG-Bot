@@ -26,6 +26,21 @@ def distance(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
+LOCATIONS_CACHE = None
+
+def load_locations():
+    global LOCATIONS_CACHE
+    if LOCATIONS_CACHE is not None:
+        return LOCATIONS_CACHE
+    filepath = 'maps/locations.json'
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            LOCATIONS_CACHE = json.load(f)
+    except Exception as e:
+        logger.error(f"❌ 載入 locations.json 失敗: {e}")
+        LOCATIONS_CACHE = {}
+    return LOCATIONS_CACHE
+
 VS30_GRID_CACHE = None
 
 def load_vs30_grid():
@@ -478,27 +493,48 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
     town_results = []
     
     load_vs30_grid()
+    locations_data = load_locations()
+    towns_data = locations_data.get('towns', {})
     
     for item in lines:
         cx, cy = item['orig_cx'], item['orig_cy']
-        px, py = map_to_img(cx, cy)
-        if item['county'] == '澎湖縣':
-            px, py = map_to_img(cx + penghu_offset_x, cy + penghu_offset_y)
+        county = item['county']
+        town = item['town']
         
-        # 還原到 WGS84 經緯度進行距離計算
+        t_lat, t_lon, t_site = None, None, None
+        if county in towns_data and town in towns_data[county]:
+            data = towns_data[county][town]
+            if len(data) >= 3:
+                t_lat = data[1]
+                t_lon = data[2]
+            if len(data) >= 4:
+                t_site = data[3]
+                
+        # 如果沒有在 locations.json 找到，退回使用多邊形幾何中心
+        if t_lat is None or t_lon is None:
+            my_max = merc_y(WGS_MAX_LAT)
+            my_min = merc_y(WGS_MIN_LAT)
+            t_lon = WGS_MIN_LON + (cx - min_x) / (max_x - min_x) * (WGS_MAX_LON - WGS_MIN_LON) if max_x > min_x else 0
+            try:
+                merc_y_lat = my_max - (cy - min_y) * (my_max - my_min) / (max_y - min_y)
+                t_lat = (math.atan(math.exp(merc_y_lat)) - math.pi/4) * 360 / math.pi
+            except Exception:
+                t_lat = lat
+                
+        # 計算繪製圓圈的位置
+        c_x = min_x + (t_lon - WGS_MIN_LON) / (WGS_MAX_LON - WGS_MIN_LON) * (max_x - min_x)
+        my = merc_y(t_lat)
         my_max = merc_y(WGS_MAX_LAT)
         my_min = merc_y(WGS_MIN_LAT)
-        t_lon = WGS_MIN_LON + (cx - min_x) / (max_x - min_x) * (WGS_MAX_LON - WGS_MIN_LON) if max_x > min_x else 0
+        c_y = min_y + (my_max - my) / (my_max - my_min) * (max_y - min_y)
         
-        # 此處採用簡單反推
-        try:
-            merc_y_lat = my_max - (cy - min_y) * (my_max - my_min) / (max_y - min_y)
-            t_lat = (math.atan(math.exp(merc_y_lat)) - math.pi/4) * 360 / math.pi
-        except Exception:
-            t_lat = lat
+        if county == '澎湖縣':
+            px, py = map_to_img(c_x + penghu_offset_x, c_y + penghu_offset_y)
+        else:
+            px, py = map_to_img(c_x, c_y)
         
-        vs30 = get_vs30(item['county'], item['town'], t_lon, t_lat)
-        pga, pgv = simulate_gm(mag, depth, lon, lat, fault_type, t_lon, t_lat, is_subduction, vs30, site_factor=None)
+        vs30 = get_vs30(county, town, t_lon, t_lat)
+        pga, pgv = simulate_gm(mag, depth, lon, lat, fault_type, t_lon, t_lat, is_subduction, vs30, site_factor=t_site)
         cdi = calc_cdi(pga, pgv)
         
         if cdi >= 0.35:
