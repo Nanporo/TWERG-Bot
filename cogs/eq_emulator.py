@@ -86,33 +86,38 @@ def simulate_gm(mag, depth, lon, lat, fault_type, target_lon, target_lat, is_sub
     R = math.sqrt(D**2 + depth**2)
     R = max(R, 3.0)
     
-    # 基本的 GMPE (Ground Motion Prediction Equation) 架構
+    # 基本的 GMPE (改良版地動預測方程式)
     if is_subduction:
-        # 隱沒帶地震震度較小，但衰減較慢（有感範圍廣）
-        log_pga = -0.25 + 0.6 * mag - 0.003 * R - 0.9 * math.log10(R)
-        log_pgv = -1.60 + 0.65 * mag - 0.002 * R - 0.9 * math.log10(R)
+        # 隱沒帶地震震度較小，但衰減較慢
+        log_pga = 0.00 + 0.55 * mag - 0.003 * R - 1.1 * math.log10(R)
+        log_pgv = -1.00 + 0.60 * mag - 0.002 * R - 1.1 * math.log10(R)
     else:
         # 淺層地殼地震
-        log_pga = -0.01 + 0.6 * mag - 0.005 * R - 1.0 * math.log10(R)
-        log_pgv = -1.4 + 0.65 * mag - 0.004 * R - 1.0 * math.log10(R)
+        log_pga = 0.20 + 0.58 * mag - 0.005 * R - 1.2 * math.log10(R)
+        log_pgv = -1.10 + 0.62 * mag - 0.004 * R - 1.2 * math.log10(R)
         
     if fault_type == '逆斷層':
-        log_pga += 0.1
-        log_pgv += 0.1
+        log_pga += 0.15
+        log_pgv += 0.15
     elif fault_type == '正斷層':
-        log_pga -= 0.05
-        log_pgv -= 0.05
+        log_pga -= 0.10
+        log_pgv -= 0.10
         
     pga_rock = 10 ** log_pga
     pgv_rock = 10 ** log_pgv
     
-    # 依據 Vs30 進行場址放大 (簡單的 NERHP 公式)
-    amp_pga = (vs30 / 760.0) ** -0.3
-    amp_pgv = (vs30 / 760.0) ** -0.6
-    
+    # 依據 Vs30 進行非線性場址放大 (Non-linear NEHRP approximation)
+    if pga_rock < 100:
+        amp_pga = (vs30 / 760.0) ** -0.35
+        amp_pgv = (vs30 / 760.0) ** -0.65
+    else:
+        non_linear_factor = max(0.1, 1.0 - (pga_rock - 100) / 1000.0)
+        amp_pga = ((vs30 / 760.0) ** -0.35) * non_linear_factor
+        amp_pgv = ((vs30 / 760.0) ** -0.65) * non_linear_factor
+        
     # 限制放大倍率，避免軟弱地盤無限放大
-    amp_pga = min(max(amp_pga, 0.5), 2.5)
-    amp_pgv = min(max(amp_pgv, 0.5), 3.5)
+    amp_pga = min(max(amp_pga, 0.5), 3.0)
+    amp_pgv = min(max(amp_pgv, 0.5), 4.0)
     
     return pga_rock * amp_pga, pgv_rock * amp_pgv
 
@@ -341,23 +346,27 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
         lat = (math.atan(math.exp(merc_y_lat)) - math.pi/4) * 360 / math.pi
         return lon, lat
 
-    img = Image.new('RGBA', (IMG_W, IMG_H), "#0f1113")
-    draw = ImageDraw.Draw(img)
+    OVERSAMPLE = 3
+    img_os = Image.new('RGBA', (IMG_W * OVERSAMPLE, IMG_H * OVERSAMPLE), "#0f1113")
+    draw_os = ImageDraw.Draw(img_os)
     
     for item in lines:
         fill_color = "#1a1d20"
         outline_color = "#292e33"
         for line in item['coords']:
-            px_line = [map_to_img(pt[0], pt[1]) for pt in line]
+            px_line = [(map_to_img(pt[0], pt[1])[0] * OVERSAMPLE, map_to_img(pt[0], pt[1])[1] * OVERSAMPLE) for pt in line]
             if len(px_line) >= 3:
-                draw.polygon(px_line, fill=fill_color, outline=outline_color)
+                draw_os.polygon(px_line, fill=fill_color, outline=outline_color)
 
     county_outline_color = "#3e454b"
     for geom_lines in county_lines:
         for line in geom_lines:
-            px_line = [map_to_img(pt[0], pt[1]) for pt in line]
+            px_line = [(map_to_img(pt[0], pt[1])[0] * OVERSAMPLE, map_to_img(pt[0], pt[1])[1] * OVERSAMPLE) for pt in line]
             if len(px_line) >= 2:
-                draw.line(px_line, fill=county_outline_color, width=2)
+                draw_os.line(px_line, fill=county_outline_color, width=2 * OVERSAMPLE)
+
+    img = img_os.resize((IMG_W, IMG_H), Image.LANCZOS)
+    draw = ImageDraw.Draw(img)
 
     font_paths = [
         "fonts/HarmonyOS_SansTC_Bold.ttf",
@@ -469,24 +478,22 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
         draw_aa_circle(img, px, py, rpx, fill=col, outline='white', width=1)
         
         grade_str = str(grade).replace('弱', '-').replace('強', '+')
-        text_col = '#1a1a1a' if cdi < 5.55 else 'white'
         
-        if hasattr(draw, 'textbbox'):
-            bbox = draw.textbbox((0, 0), grade_str, font=font_intensity)
-            tw = bbox[2] - bbox[0]
-            th = bbox[3] - bbox[1]
-        else:
-            tw, th = draw.textsize(grade_str, font=font_intensity)
-            
-        draw.text((px - tw/2, py - th/2 - 2), grade_str, fill=text_col, font=font_intensity)
+        # 依照背景色亮度決定文字顏色
+        h = col.lstrip('#')
+        r, g, b = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        text_col = 'white' if lum < 128 else '#1a1a1a'
+        
+        draw.text((px, py - 1), grade_str, fill=text_col, font=font_intensity, anchor="mm")
 
     # 繪製震央
     epx, epy = lonlat_to_img(lon, lat)
     cross_size = 14
     border_extend = 2
     # 白色外框 (稍微延長以包覆末端)
-    draw.line((epx - cross_size - border_extend, epy - cross_size - border_extend, epx + cross_size + border_extend, epy + cross_size + border_extend), fill="#ffffff", width=12)
-    draw.line((epx - cross_size - border_extend, epy + cross_size + border_extend, epx + cross_size + border_extend, epy - cross_size - border_extend), fill="#ffffff", width=12)
+    draw.line((epx - cross_size - border_extend, epy - cross_size - border_extend, epx + cross_size + border_extend, epy + cross_size + border_extend), fill="#ffffff", width=10)
+    draw.line((epx - cross_size - border_extend, epy + cross_size + border_extend, epx + cross_size + border_extend, epy - cross_size - border_extend), fill="#ffffff", width=10)
     # 紅色內部 (加粗)
     draw.line((epx - cross_size, epy - cross_size, epx + cross_size, epy + cross_size), fill="#ff3333", width=8)
     draw.line((epx - cross_size, epy + cross_size, epx + cross_size, epy - cross_size), fill="#ff3333", width=8)
