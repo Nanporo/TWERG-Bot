@@ -276,6 +276,10 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
     county_lines = []
     if 'counties' in topo['objects']:
         for geom in topo['objects']['counties']['geometries']:
+            c_name = geom.get('properties', {}).get('COUNTYNAME', '')
+            if c_name in ['金門縣', '連江縣']:
+                continue
+
             geom_lines = []
             if geom['type'] == 'Polygon':
                 for ring in geom['arcs']:
@@ -296,14 +300,8 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
             filtered_geom_lines = []
             for line in geom_lines:
                 if not line: continue
-                pt = line[0]
-                is_kinmen = kinmen_x_list and (min(kinmen_x_list)-5 <= pt[0] <= max(kinmen_x_list)+5) and (min(kinmen_y_list)-5 <= pt[1] <= max(kinmen_y_list)+5)
-                is_matsu = matsu_x_list and (min(matsu_x_list)-5 <= pt[0] <= max(matsu_x_list)+5) and (min(matsu_y_list)-5 <= pt[1] <= max(matsu_y_list)+5)
-                if is_kinmen or is_matsu:
-                    continue
-                    
-                is_penghu = penghu_x_list and (min(penghu_x_list)-5 <= pt[0] <= max(penghu_x_list)+5) and (min(penghu_y_list)-5 <= pt[1] <= max(penghu_y_list)+5)
-                if is_penghu:
+                
+                if c_name == '澎湖縣':
                     moved_line = [(p[0] + penghu_offset_x, p[1] + penghu_offset_y) for p in line]
                     filtered_geom_lines.append(moved_line)
                 else:
