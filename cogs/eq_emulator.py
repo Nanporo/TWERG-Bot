@@ -8,7 +8,10 @@ import uuid
 import json
 import urllib.request
 from datetime import datetime, timezone, timedelta
+import logging
 from PIL import Image, ImageDraw, ImageFont
+
+logger = logging.getLogger(__name__)
 
 # 這是一個非常簡易的地震模擬模組，由於我不熟悉這方面的算法，如果覺得有可以改進的地方請丟 PR 
 
@@ -23,7 +26,38 @@ def distance(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
-def get_vs30(county, town):
+VS30_GRID_CACHE = None
+
+def load_vs30_grid():
+    global VS30_GRID_CACHE
+    if VS30_GRID_CACHE is not None:
+        return
+    VS30_GRID_CACHE = {}
+    filepath = 'data/ncree_vs30.csv'
+    if os.path.exists(filepath):
+        try:
+            import csv
+            with open(filepath, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    glon = round(float(row['lon']), 2)
+                    glat = round(float(row['lat']), 2)
+                    VS30_GRID_CACHE[(glon, glat)] = float(row['vs30'])
+            logger.info("✅ 成功載入高解析度 Vs30 網格資料")
+        except Exception as e:
+            logger.error(f"❌ 載入 Vs30 網格資料失敗: {e}")
+
+def get_vs30(county, town, lon=None, lat=None):
+    if lon is not None and lat is not None and VS30_GRID_CACHE:
+        r_lon = round(lon, 2)
+        r_lat = round(lat, 2)
+        if (r_lon, r_lat) in VS30_GRID_CACHE:
+            return VS30_GRID_CACHE[(r_lon, r_lat)]
+        for dlon in [-0.01, 0, 0.01]:
+            for dlat in [-0.01, 0, 0.01]:
+                if (round(r_lon+dlon, 2), round(r_lat+dlat, 2)) in VS30_GRID_CACHE:
+                    return VS30_GRID_CACHE[(round(r_lon+dlon, 2), round(r_lat+dlat, 2))]
+                    
     # 概略估計台灣各鄉鎮 Vs30
     county = county.replace('臺', '台')
     
@@ -81,7 +115,7 @@ def get_vs30(county, town):
     if county == '連江縣': return 500
     return 400
 
-def simulate_gm(mag, depth, lon, lat, fault_type, target_lon, target_lat, is_subduction, vs30):
+def simulate_gm(mag, depth, lon, lat, fault_type, target_lon, target_lat, is_subduction, vs30, site_factor=None):
     D = distance(lat, lon, target_lat, target_lon)
     R = math.sqrt(D**2 + depth**2)
     R = max(R, 3.0)
@@ -106,18 +140,22 @@ def simulate_gm(mag, depth, lon, lat, fault_type, target_lon, target_lat, is_sub
     pga_rock = 10 ** log_pga
     pgv_rock = 10 ** log_pgv
     
-    # 依據 Vs30 進行非線性場址放大 (Non-linear NEHRP approximation)
-    if pga_rock < 100:
-        amp_pga = (vs30 / 760.0) ** -0.35
-        amp_pgv = (vs30 / 760.0) ** -0.65
+    if site_factor is not None and site_factor > 0:
+        amp_pga = site_factor
+        amp_pgv = site_factor
     else:
-        non_linear_factor = max(0.1, 1.0 - (pga_rock - 100) / 1000.0)
-        amp_pga = ((vs30 / 760.0) ** -0.35) * non_linear_factor
-        amp_pgv = ((vs30 / 760.0) ** -0.65) * non_linear_factor
-        
-    # 限制放大倍率，避免軟弱地盤無限放大
-    amp_pga = min(max(amp_pga, 0.5), 3.0)
-    amp_pgv = min(max(amp_pgv, 0.5), 4.0)
+        # 依據 Vs30 進行非線性場址放大 (Non-linear NEHRP approximation)
+        if pga_rock < 100:
+            amp_pga = (vs30 / 760.0) ** -0.35
+            amp_pgv = (vs30 / 760.0) ** -0.65
+        else:
+            non_linear_factor = max(0.1, 1.0 - (pga_rock - 100) / 1000.0)
+            amp_pga = ((vs30 / 760.0) ** -0.35) * non_linear_factor
+            amp_pgv = ((vs30 / 760.0) ** -0.65) * non_linear_factor
+            
+        # 限制放大倍率，避免軟弱地盤無限放大
+        amp_pga = min(max(amp_pga, 0.5), 3.0)
+        amp_pgv = min(max(amp_pgv, 0.5), 4.0)
     
     return pga_rock * amp_pga, pgv_rock * amp_pgv
 
@@ -438,6 +476,9 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
 
     # 計算各鄉鎮震度並排序
     town_results = []
+    
+    load_vs30_grid()
+    
     for item in lines:
         cx, cy = item['orig_cx'], item['orig_cy']
         px, py = map_to_img(cx, cy)
@@ -456,8 +497,8 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
         except Exception:
             t_lat = lat
         
-        vs30 = get_vs30(item['county'], item['town'])
-        pga, pgv = simulate_gm(mag, depth, lon, lat, fault_type, t_lon, t_lat, is_subduction, vs30)
+        vs30 = get_vs30(item['county'], item['town'], t_lon, t_lat)
+        pga, pgv = simulate_gm(mag, depth, lon, lat, fault_type, t_lon, t_lat, is_subduction, vs30, site_factor=None)
         cdi = calc_cdi(pga, pgv)
         
         if cdi >= 0.35:
