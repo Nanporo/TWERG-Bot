@@ -501,6 +501,10 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
         county = item['county']
         town = item['town']
         
+        if county == '澎湖縣':
+            cx += penghu_offset_x
+            cy += penghu_offset_y
+        
         t_lat, t_lon, t_site = None, None, None
         if county in towns_data and town in towns_data[county]:
             data = towns_data[county][town]
@@ -528,10 +532,7 @@ def render_emulator_map_pil(mag, depth, lon, lat, fault_type):
         my_min = merc_y(WGS_MIN_LAT)
         c_y = min_y + (my_max - my) / (my_max - my_min) * (max_y - min_y)
         
-        if county == '澎湖縣':
-            px, py = map_to_img(c_x + penghu_offset_x, c_y + penghu_offset_y)
-        else:
-            px, py = map_to_img(c_x, c_y)
+        px, py = map_to_img(c_x, c_y)
         
         vs30 = get_vs30(county, town, t_lon, t_lat)
         pga, pgv = simulate_gm(mag, depth, lon, lat, fault_type, t_lon, t_lat, is_subduction, vs30, site_factor=t_site)

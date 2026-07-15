@@ -40,11 +40,13 @@ class SettingsOverviewView(discord.ui.View):
         yt_status = "`🟢` 已啟用" if self.settings.get("yt_monitor_enabled") else "`🔴` 已停用"
         rmt_status = "`🟢` 已啟用" if self.settings.get("rmt_monitor_enabled") else "`🔴` 已停用"
         grmt_status = "`🟢` 已啟用" if self.settings.get("grmt_monitor_enabled") else "`🔴` 已停用"
+        auto_pub_status = "`🟢` 已啟用" if self.settings.get("auto_publish_news") else "`🔴` 已停用"
         
         embed.add_field(name="⚙️ TWERG 體感回報設定", value=eq_status, inline=False)
         embed.add_field(name="🖥️ YouTube 直播監控", value=yt_status, inline=False)
         embed.add_field(name="📡 RMT 推送設定", value=rmt_status, inline=False)
         embed.add_field(name="🌍 GRMT 推送設定", value=grmt_status, inline=False)
+        embed.add_field(name="📢 公告頻道自動發布", value=auto_pub_status, inline=False)
         
         return embed
 
@@ -54,7 +56,8 @@ class SettingsOverviewView(discord.ui.View):
             discord.SelectOption(label="TWERG 體感回報設定", value="eq", emoji="⚙️", description="自動推送最新地震報告與體感統計"),
             discord.SelectOption(label="YouTube 直播監控設定", value="yt", emoji="🖥️", description="監控地震直播人數異常增加"),
             discord.SelectOption(label="RMT 推送設定", value="rmt", emoji="📡", description="自動推送 RMT 即時地震動報告"),
-            discord.SelectOption(label="GRMT 推送設定", value="grmt", emoji="🌍", description="自動推送 Global RMT 地震動報告")
+            discord.SelectOption(label="GRMT 推送設定", value="grmt", emoji="🌍", description="自動推送 Global RMT 地震動報告"),
+            discord.SelectOption(label="公告自動發布設定", value="auto_pub", emoji="📢", description="自動發布公告頻道的訊息")
         ],
         row=0
     )
@@ -68,6 +71,8 @@ class SettingsOverviewView(discord.ui.View):
             view = RMTSettingsView(self.guild_id)
         elif val == "grmt":
             view = GRMTSettingsView(self.guild_id)
+        elif val == "auto_pub":
+            view = AutoPublishSettingsView(self.guild_id)
         
         await interaction.response.edit_message(embed=view.build_embed(), view=view)
 
@@ -458,6 +463,53 @@ class SettingsView(discord.ui.View):
     @discord.ui.button(label="完成設定", style=discord.ButtonStyle.success, row=3)
     async def finish_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         """其實沒有特別作用的確認按鈕"""
+        await interaction.response.edit_message(
+            content="✅ **設定已儲存**", 
+            embed=self.build_embed(), 
+            view=None
+        )
+        self.stop()
+
+class AutoPublishSettingsView(discord.ui.View):
+    def __init__(self, guild_id: int | str):
+        super().__init__(timeout=None)
+        self.guild_id = str(guild_id)
+        self.all_settings = load_settings()
+        
+        if self.guild_id not in self.all_settings:
+            self.all_settings[self.guild_id] = {}
+            
+        self.settings = self.all_settings[self.guild_id]
+        
+        if "auto_publish_news" not in self.settings:
+            self.settings["auto_publish_news"] = False
+
+    def build_embed(self) -> discord.Embed:
+        embed = discord.Embed(
+            title="`📢` 公告頻道自動發布設定",
+            description="開啟後，機器人將自動發布伺服器內所有「公告頻道 (News)」的新訊息。\n具有 Advanced URL Detection，可確保帶有網址的訊息也能正確發布 Embed。",
+            color=0x9b59b6
+        )
+        
+        status = "`🟢` 已啟用" if self.settings.get("auto_publish_news") else "`🔴` 已停用"
+        embed.add_field(name="自動發布狀態", value=status, inline=False)
+        
+        return embed
+
+    @discord.ui.button(label="切換狀態", style=discord.ButtonStyle.primary, row=0)
+    async def toggle_auto_pub(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.settings["auto_publish_news"] = not self.settings.get("auto_publish_news", False)
+        self.all_settings[self.guild_id] = self.settings
+        save_settings(self.all_settings)
+        await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.button(label="返回概覽", style=discord.ButtonStyle.secondary, row=1)
+    async def go_back(self, interaction: discord.Interaction, button: discord.ui.Button):
+        view = SettingsOverviewView(self.guild_id)
+        await interaction.response.edit_message(embed=view.build_embed(), view=view)
+
+    @discord.ui.button(label="完成設定", style=discord.ButtonStyle.success, row=1)
+    async def finish_settings(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.edit_message(
             content="✅ **設定已儲存**", 
             embed=self.build_embed(), 

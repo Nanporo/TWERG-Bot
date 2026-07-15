@@ -63,6 +63,17 @@ class MyBot(commands.Bot):
                     logging.info(f"🔄 [模組] {extension_name} 載入完成")
                 except Exception as e:
                     logging.error(f"❌ 載入模組 {extension_name} 時發生錯誤: {e}")
+                    
+        # 自動載入 cogs/alarm/ 資料夾下的所有 .py 檔案
+        if os.path.exists('./cogs/alarm'):
+            for filename in os.listdir('./cogs/alarm'):
+                if filename.endswith('.py') and not filename.startswith(('_', '.')):
+                    extension_name = f'cogs.alarm.{filename[:-3]}'
+                    try:
+                        await self.load_extension(extension_name)
+                        logging.info(f"🔄 [模組] {extension_name} 載入完成")
+                    except Exception as e:
+                        logging.error(f"❌ 載入模組 {extension_name} 時發生錯誤: {e}")
         # ========================================================
 
         # ================= 同步斜線指令 =================
