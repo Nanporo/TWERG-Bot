@@ -6,3 +6,4 @@ config.json
 guild_settings.json
 /.vscode
 /module/__pycache__
+/cogs/alarm/__pycache__
